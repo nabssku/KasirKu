@@ -17,7 +17,12 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
 
         $middleware->alias([
-            'verified' => \App\Http\Middleware\EnsureEmailIsVerified::class,
+            'verified'     => \App\Http\Middleware\EnsureEmailIsVerified::class,
+            'tenant'       => \App\Http\Middleware\TenantMiddleware::class,
+            'subscription' => \App\Http\Middleware\CheckSubscription::class,
+            'role'         => \App\Http\Middleware\CheckRole::class,
+            'permission'   => \App\Http\Middleware\CheckPermission::class,
+            'plan.limit'   => \App\Http\Middleware\CheckPlanLimit::class,
         ]);
 
         //

@@ -1,0 +1,96 @@
+<?php
+
+namespace App\Services;
+
+use App\Models\Outlet;
+use App\Models\Shift;
+use App\Models\CashDrawerLog;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
+
+class ShiftService
+{
+    public function openShift(array $data): Shift
+    {
+        // Check for existing open shift in this outlet
+        $existingShift = Shift::where('outlet_id', $data['outlet_id'])
+            ->where('status', 'open')
+            ->first();
+
+        if ($existingShift) {
+            throw ValidationException::withMessages([
+                'shift' => 'There is already an open shift for this outlet.',
+            ]);
+        }
+
+        return Shift::create([
+            'tenant_id'    => auth()->user()->tenant_id,
+            'outlet_id'    => $data['outlet_id'],
+            'opened_by'    => auth()->id(),
+            'opening_cash' => $data['opening_cash'] ?? 0,
+            'status'       => 'open',
+            'opened_at'    => now(),
+            'notes'        => $data['notes'] ?? null,
+        ]);
+    }
+
+    public function closeShift(Shift $shift, array $data): Shift
+    {
+        if (!$shift->isOpen()) {
+            throw ValidationException::withMessages([
+                'shift' => 'This shift is already closed.',
+            ]);
+        }
+
+        return DB::transaction(function () use ($shift, $data) {
+            // Calculate expected cash
+            $cashTransactions = $shift->transactions()
+                ->whereHas('payments', fn ($q) => $q->where('payment_method', 'cash'))
+                ->with('payments')
+                ->get()
+                ->flatMap(fn ($t) => $t->payments->where('payment_method', 'cash'))
+                ->sum('amount');
+
+            $cashIn       = $shift->cashDrawerLogs()->where('type', 'in')->sum('amount');
+            $cashOut      = $shift->cashDrawerLogs()->where('type', 'out')->sum('amount');
+            $expectedCash = (float) $shift->opening_cash + $cashTransactions + $cashIn - $cashOut;
+            $closingCash  = $data['closing_cash'] ?? 0;
+
+            $shift->update([
+                'closed_by'       => auth()->id(),
+                'closing_cash'    => $closingCash,
+                'expected_cash'   => $expectedCash,
+                'cash_difference' => $closingCash - $expectedCash,
+                'status'          => 'closed',
+                'closed_at'       => now(),
+                'notes'           => $data['notes'] ?? $shift->notes,
+            ]);
+
+            return $shift->fresh(['openedBy', 'closedBy', 'transactions']);
+        });
+    }
+
+    public function getCurrentShift(string $outletId): ?Shift
+    {
+        return Shift::where('outlet_id', $outletId)
+            ->where('status', 'open')
+            ->first();
+    }
+
+    public function addCashDrawerLog(Shift $shift, array $data): CashDrawerLog
+    {
+        if (!$shift->isOpen()) {
+            throw ValidationException::withMessages([
+                'shift' => 'Cannot log cash movement on a closed shift.',
+            ]);
+        }
+
+        return CashDrawerLog::create([
+            'shift_id' => $shift->id,
+            'user_id'  => auth()->id(),
+            'type'     => $data['type'],
+            'amount'   => $data['amount'],
+            'reason'   => $data['reason'] ?? null,
+        ]);
+    }
+}
