@@ -19,9 +19,22 @@ class TransactionController extends Controller
     public function index(Request $request): JsonResponse
     {
         $perPage = (int) $request->query('per_page', 15);
+        $user    = auth()->user();
 
-        $transactions = Transaction::with(['items', 'customer', 'user', 'payments'])
-            ->orderBy('created_at', 'desc')
+        $query = Transaction::with(['items', 'customer', 'user', 'payments'])
+            ->where('tenant_id', $user->tenant_id);
+
+        if ($request->has('outlet_id')) {
+            $query->where('outlet_id', $request->outlet_id);
+        } else if ($user->outlet_id) {
+            $query->where('outlet_id', $user->outlet_id);
+        }
+
+        if ($request->has('status')) {
+            $query->where('status', $request->status);
+        }
+
+        $transactions = $query->orderBy('created_at', 'desc')
             ->paginate($perPage);
 
         return response()->json([
@@ -48,8 +61,9 @@ class TransactionController extends Controller
             'shift_id'           => ['nullable', 'uuid', 'exists:shifts,id'],
             'type'               => ['nullable', 'string', 'in:dine_in,takeaway,delivery'],
             'discount'           => ['nullable', 'numeric', 'min:0'],
-            'paid_amount'        => ['required', 'numeric', 'min:0'],
-            'payment_method'     => ['required', 'string', 'in:cash,bank_transfer,e-wallet'],
+            'paid_amount'        => [($request->status === 'pending' ? 'nullable' : 'required'), 'numeric', 'min:0'],
+            'payment_method'     => [($request->status === 'pending' ? 'nullable' : 'required'), 'string', 'in:cash,bank_transfer,e-wallet'],
+            'status'             => ['nullable', 'string', 'in:pending,completed'],
             'notes'              => ['nullable', 'string'],
             'payments'           => ['nullable', 'array'],
             'payments.*.method'  => ['required', 'string', 'in:cash,bank_transfer,e-wallet'],
@@ -78,6 +92,38 @@ class TransactionController extends Controller
             'data'    => new TransactionResource($transaction),
         ]);
     }
+    public function update(Request $request, string $id): JsonResponse
+    {
+        $validated = $request->validate([
+            'items'                => ['required', 'array', 'min:1'],
+            'items.*.product_id'   => ['required', 'uuid', 'exists:products,id'],
+            'items.*.quantity'     => ['required', 'integer', 'min:1'],
+            'items.*.price'        => ['required', 'numeric', 'min:0'],
+            'customer_id'          => ['nullable', 'uuid', 'exists:customers,id'],
+            'table_id'             => ['nullable', 'uuid', 'exists:restaurant_tables,id'],
+            'shift_id'             => ['nullable', 'uuid', 'exists:shifts,id'],
+            'type'                 => ['nullable', 'string', 'in:dine_in,takeaway,delivery'],
+            'discount'             => ['nullable', 'numeric', 'min:0'],
+            'paid_amount'          => [($request->status === 'pending' ? 'nullable' : 'required'), 'numeric', 'min:0'],
+            'payment_method'       => [($request->status === 'pending' ? 'nullable' : 'required'), 'string', 'in:cash,bank_transfer,e-wallet'],
+            'status'               => ['nullable', 'string', 'in:pending,completed'],
+            'notes'                => ['nullable', 'string'],
+            'payments'             => ['nullable', 'array'],
+            'payments.*.method'    => ['required', 'string', 'in:cash,bank_transfer,e-wallet'],
+            'payments.*.amount'    => ['required', 'numeric', 'min:0'],
+            'payments.*.reference' => ['nullable', 'string'],
+        ]);
+
+        $dto = TransactionDTO::fromRequest($validated);
+        $transaction = $this->transactionService->updateTransaction($id, $dto);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Transaction updated successfully.',
+            'data'    => new TransactionResource($transaction->load(['items', 'customer', 'payments'])),
+        ]);
+    }
+
     public function destroy(string $id): JsonResponse
     {
         $transaction = Transaction::with(['items', 'customer', 'user', 'payments'])->findOrFail($id);

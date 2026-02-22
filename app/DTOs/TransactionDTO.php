@@ -35,7 +35,8 @@ class TransactionDTO
         public float $paid_amount = 0,
         public string $payment_method = 'cash',
         public ?string $notes = null,
-        public array $payments = []
+        public array $payments = [],
+        public string $status = 'completed'
     ) {}
 
     public static function fromRequest(array $data): self
@@ -52,7 +53,8 @@ class TransactionDTO
             paid_amount: $data['paid_amount'] ?? 0,
             payment_method: $data['payment_method'] ?? 'cash',
             notes: $data['notes'] ?? null,
-            payments: $data['payments'] ?? []
+            payments: $data['payments'] ?? [],
+            status: $data['status'] ?? 'completed'
         );
     }
 }

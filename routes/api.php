@@ -166,7 +166,9 @@ Route::prefix('v1')->group(function () {
             Route::put('/tables/{id}',          [TableController::class, 'update']);
             Route::delete('/tables/{id}',       [TableController::class, 'destroy']);
         });
-        Route::patch('/tables/{id}/status', [TableController::class, 'updateStatus']);
+        Route::middleware('role:super_admin,owner,admin,cashier')->group(function () {
+            Route::patch('/tables/{id}/status', [TableController::class, 'updateStatus']);
+        });
 
         // ── Kitchen Orders (Kitchen staff + Admin) ────────────────────────────
         Route::middleware('role:super_admin,owner,admin,kitchen,cashier')->group(function () {
@@ -179,6 +181,7 @@ Route::prefix('v1')->group(function () {
         Route::get('/transactions',      [TransactionController::class, 'index']);
         Route::post('/transactions',     [TransactionController::class, 'store']);
         Route::get('/transactions/{id}', [TransactionController::class, 'show']);
+        Route::put('/transactions/{id}', [TransactionController::class, 'update']);
         Route::middleware('role:super_admin,owner,admin')->group(function () {
             Route::delete('/transactions/{id}', [TransactionController::class, 'destroy']);
         });
