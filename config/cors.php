@@ -25,6 +25,7 @@ return [
         'http://localhost:5173',
         'http://192.168.1.5:5173',
         'http://192.168.137.1:5173',
+        'https://jagokasirku.vercel.app',
     ],
 
     'allowed_origins_patterns' => [],

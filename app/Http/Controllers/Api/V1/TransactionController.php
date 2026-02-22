@@ -137,4 +137,43 @@ class TransactionController extends Controller
             'message' => 'Transaction deleted successfully.',
         ]);
     }
+
+    /**
+     * Generate structured receipt data for Bluetooth printing.
+     */
+    public function receipt(string $id): JsonResponse
+    {
+        $transaction = Transaction::with(['items', 'customer', 'user', 'outlet'])->findOrFail($id);
+
+        $outlet = $transaction->outlet;
+
+        $receipt = [
+            'store_name'     => $outlet?->name ?? config('app.name', 'KasirKu'),
+            'store_address'  => $outlet?->address ?? '',
+            'store_phone'    => $outlet?->phone ?? '',
+            'invoice_number' => $transaction->invoice_number,
+            'date'           => $transaction->created_at->setTimezone('Asia/Jakarta')->format('d/m/Y H:i'),
+            'cashier'        => $transaction->user?->name ?? 'Kasir',
+            'customer'       => $transaction->customer?->name ?? 'Umum',
+            'type'           => $transaction->type,
+            'items'          => $transaction->items->map(fn($item) => [
+                'name'     => $item->product_name,
+                'quantity' => $item->quantity,
+                'price'    => (float) $item->price,
+                'subtotal' => (float) $item->subtotal,
+            ]),
+            'subtotal'       => (float) $transaction->subtotal,
+            'discount'       => (float) $transaction->discount,
+            'tax'            => (float) $transaction->tax,
+            'tax_rate'       => (float) $transaction->tax_rate,
+            'service_charge' => (float) $transaction->service_charge,
+            'grand_total'    => (float) $transaction->grand_total,
+            'paid_amount'    => (float) $transaction->paid_amount,
+            'change_amount'  => (float) $transaction->change_amount,
+            'payment_method' => $transaction->payments->first()?->method ?? 'cash',
+            'status'         => $transaction->status,
+        ];
+
+        return response()->json(['success' => true, 'data' => $receipt]);
+    }
 }

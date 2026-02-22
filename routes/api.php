@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\V1\AuthController;
+use App\Http\Controllers\Api\V1\BluetoothPrinterController;
 use App\Http\Controllers\Api\V1\CategoryController;
 use App\Http\Controllers\Api\V1\CustomerController;
 use App\Http\Controllers\Api\V1\IngredientController;
@@ -178,12 +179,22 @@ Route::prefix('v1')->group(function () {
         });
 
         // ── Transactions (Cashier+) ───────────────────────────────────────────
-        Route::get('/transactions',      [TransactionController::class, 'index']);
-        Route::post('/transactions',     [TransactionController::class, 'store']);
-        Route::get('/transactions/{id}', [TransactionController::class, 'show']);
-        Route::put('/transactions/{id}', [TransactionController::class, 'update']);
+        Route::get('/transactions',               [TransactionController::class, 'index']);
+        Route::post('/transactions',              [TransactionController::class, 'store']);
+        Route::get('/transactions/{id}',          [TransactionController::class, 'show']);
+        Route::get('/transactions/{id}/receipt',  [TransactionController::class, 'receipt']);
+        Route::put('/transactions/{id}',          [TransactionController::class, 'update']);
         Route::middleware('role:super_admin,owner,admin')->group(function () {
             Route::delete('/transactions/{id}', [TransactionController::class, 'destroy']);
+        });
+
+        // ── Bluetooth Printers ────────────────────────────────────────────────
+        Route::get('/bluetooth-printers', [BluetoothPrinterController::class, 'index']);
+        Route::middleware('role:super_admin,owner,admin')->group(function () {
+            Route::post('/bluetooth-printers',                    [BluetoothPrinterController::class, 'store']);
+            Route::put('/bluetooth-printers/{id}',               [BluetoothPrinterController::class, 'update']);
+            Route::delete('/bluetooth-printers/{id}',            [BluetoothPrinterController::class, 'destroy']);
+            Route::patch('/bluetooth-printers/{id}/set-default', [BluetoothPrinterController::class, 'setDefault']);
         });
 
         // ── Shifts (Cashier+) ─────────────────────────────────────────────────
