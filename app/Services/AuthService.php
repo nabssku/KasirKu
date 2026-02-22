@@ -11,6 +11,7 @@ class AuthService
     public function login(array $credentials): ?array
     {
         // For JWT auth with tymon/jwt-auth
+        $credentials['is_active'] = true;
         $token = auth('api')->attempt($credentials);
 
         if (!$token) {
