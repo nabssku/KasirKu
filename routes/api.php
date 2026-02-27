@@ -17,6 +17,7 @@ use App\Http\Controllers\Api\V1\TableController;
 use App\Http\Controllers\Api\V1\TransactionController;
 use App\Http\Controllers\Api\V1\UserManagementController;
 use App\Http\Controllers\Api\V1\SuperAdminController;
+use App\Http\Controllers\Api\V1\ExpenseController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -217,6 +218,18 @@ Route::prefix('v1')->group(function () {
             Route::get('/by-staff',     [ReportController::class, 'byStaff']);
             Route::get('/by-outlet',    [ReportController::class, 'byOutlet']);
             Route::get('/dead-stock',   [ReportController::class, 'deadStock']);
+        });
+
+        // ── Expenses (Admin+, Cashier can record) ──────────────────────────────
+        Route::get('/expense-categories', [ExpenseController::class, 'indexCategories']);
+        Route::middleware('role:super_admin,owner,admin')->group(function () {
+            Route::post('/expense-categories', [ExpenseController::class, 'storeCategory']);
+        });
+
+        Route::get('/expenses', [ExpenseController::class, 'index']);
+        Route::post('/expenses', [ExpenseController::class, 'store']);
+        Route::middleware('role:super_admin,owner,admin')->group(function () {
+            Route::delete('/expenses/{id}', [ExpenseController::class, 'destroy']);
         });
     });
 });

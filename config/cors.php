@@ -26,6 +26,8 @@ return [
         'http://192.168.1.5:5173',
         'http://192.168.137.1:5173',
         'https://jagokasirku.vercel.app',
+        'http://100.125.254.53:5173',
+        'http://192.168.56.1:5173',
     ],
 
     'allowed_origins_patterns' => [],
@@ -36,6 +38,6 @@ return [
 
     'max_age' => 0,
 
-    'supports_credentials' => true,
+    'supports_credentials' => false,
 
 ];

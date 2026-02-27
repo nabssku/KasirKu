@@ -77,7 +77,7 @@ class TransactionController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Transaction completed successfully.',
-            'data'    => new TransactionResource($transaction->load(['items', 'customer', 'payments'])),
+            'data'    => new TransactionResource($transaction->load(['items', 'customer', 'payments', 'outlet'])),
         ], 201);
     }
 
@@ -120,7 +120,7 @@ class TransactionController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Transaction updated successfully.',
-            'data'    => new TransactionResource($transaction->load(['items', 'customer', 'payments'])),
+            'data'    => new TransactionResource($transaction->load(['items', 'customer', 'payments', 'outlet'])),
         ]);
     }
 
@@ -172,6 +172,7 @@ class TransactionController extends Controller
             'change_amount'  => (float) $transaction->change_amount,
             'payment_method' => $transaction->payments->first()?->method ?? 'cash',
             'status'         => $transaction->status,
+            'receipt_settings' => $outlet?->receipt_settings,
         ];
 
         return response()->json(['success' => true, 'data' => $receipt]);

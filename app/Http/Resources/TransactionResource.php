@@ -38,6 +38,7 @@ class TransactionResource extends JsonResource
                 'price'        => (float) $item->price,
                 'subtotal'     => (float) $item->subtotal,
             ])),
+            'receipt_settings' => $this->whenLoaded('outlet', fn() => $this->outlet?->receipt_settings),
             'created_at'     => $this->created_at?->toISOString(),
         ];
     }

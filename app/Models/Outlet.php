@@ -23,12 +23,14 @@ class Outlet extends Model
         'tax_rate',
         'service_charge',
         'is_active',
+        'receipt_settings',
     ];
 
     protected $casts = [
-        'tax_rate'       => 'decimal:2',
-        'service_charge' => 'decimal:2',
-        'is_active'      => 'boolean',
+        'tax_rate'         => 'decimal:2',
+        'service_charge'   => 'decimal:2',
+        'is_active'        => 'boolean',
+        'receipt_settings' => 'array',
     ];
 
     public function tenant(): BelongsTo

@@ -5,6 +5,8 @@ namespace App\Http\Resources;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
+use Illuminate\Support\Facades\Storage;
+
 class ProductResource extends JsonResource
 {
     public function toArray(Request $request): array
@@ -19,7 +21,7 @@ class ProductResource extends JsonResource
             'cost_price'  => (float) $this->cost_price,
             'stock'       => $this->stock,
             'min_stock'   => $this->min_stock,
-            'image'       => $this->image,
+            'image'       => $this->image ? Storage::disk('public')->url($this->image) : null,
             'is_active'   => $this->is_active,
             'is_low_stock'=> $this->stock <= $this->min_stock,
             'category'    => $this->whenLoaded('category', fn() => [
