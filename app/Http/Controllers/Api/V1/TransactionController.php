@@ -21,13 +21,10 @@ class TransactionController extends Controller
         $perPage = (int) $request->query('per_page', 15);
         $user    = auth()->user();
 
-        $query = Transaction::with(['items', 'customer', 'user', 'payments', 'table'])
-            ->where('tenant_id', $user->tenant_id);
+        $query = Transaction::with(['items', 'customer', 'user', 'payments', 'table']);
 
         if ($request->has('outlet_id')) {
-            $query->where('outlet_id', $request->outlet_id);
-        } else if ($user->outlet_id) {
-            $query->where('outlet_id', $user->outlet_id);
+            $query->withoutGlobalScope(\App\Core\Scopes\OutletScope::class)->where('outlet_id', $request->outlet_id);
         }
 
         if ($request->has('status')) {

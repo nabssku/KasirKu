@@ -83,7 +83,8 @@ Route::prefix('v1')->group(function () {
     Route::middleware(['auth:api', 'tenant', 'subscription'])->group(function () {
 
         // ── Outlets (Owner / Admin) ───────────────────────────────────────────
-        Route::middleware('role:super_admin,owner')->group(function () {
+        // ── Outlets (Owner / Admin Operational) ───────────────────────────────
+        Route::middleware('role:super_admin,owner,admin')->group(function () {
             Route::apiResource('outlets', OutletController::class);
         });
 
@@ -189,13 +190,16 @@ Route::prefix('v1')->group(function () {
             Route::delete('/transactions/{id}', [TransactionController::class, 'destroy']);
         });
 
-        // ── Bluetooth Printers ────────────────────────────────────────────────
+        // ── Bluetooth Printers (Admin Operational, Owner View-only) ───────────
         Route::get('/bluetooth-printers', [BluetoothPrinterController::class, 'index']);
-        Route::middleware('role:super_admin,owner,admin')->group(function () {
+        Route::middleware('role:super_admin,admin')->group(function () {
             Route::post('/bluetooth-printers',                    [BluetoothPrinterController::class, 'store']);
             Route::put('/bluetooth-printers/{id}',               [BluetoothPrinterController::class, 'update']);
             Route::delete('/bluetooth-printers/{id}',            [BluetoothPrinterController::class, 'destroy']);
             Route::patch('/bluetooth-printers/{id}/set-default', [BluetoothPrinterController::class, 'setDefault']);
+        });
+        Route::middleware('role:owner')->group(function () {
+            // Already covered by top-level index for read
         });
 
         // ── Shifts (Cashier+) ─────────────────────────────────────────────────

@@ -42,7 +42,7 @@ class ExpenseService
         $query = Expense::with(['category', 'user', 'outlet']);
 
         if (!empty($filters['outlet_id'])) {
-            $query->where('outlet_id', $filters['outlet_id']);
+            $query->withoutGlobalScope(\App\Core\Scopes\OutletScope::class)->where('outlet_id', $filters['outlet_id']);
         }
 
         if (!empty($filters['start_date'])) {

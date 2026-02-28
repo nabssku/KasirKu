@@ -48,7 +48,7 @@ class UserManagementController extends Controller
 
         $user = User::create([
             'tenant_id' => $tenantId,
-            'outlet_id' => $validated['outlet_id'] ?? null,
+            'outlet_id' => $validated['role_slug'] === 'owner' ? null : ($validated['outlet_id'] ?? null),
             'name'      => $validated['name'],
             'email'     => $validated['email'],
             'password'  => Hash::make($validated['password']),
@@ -81,13 +81,20 @@ class UserManagementController extends Controller
             'name'      => $validated['name'] ?? null,
             'email'     => $validated['email'] ?? null,
             'password'  => isset($validated['password']) ? Hash::make($validated['password']) : null,
-            'outlet_id' => array_key_exists('outlet_id', $validated) ? $validated['outlet_id'] : null,
             'is_active' => $validated['is_active'] ?? null,
         ], fn ($v) => $v !== null));
+
+        if (array_key_exists('outlet_id', $validated)) {
+            $user->update(['outlet_id' => $validated['outlet_id']]);
+        }
 
         if (!empty($validated['role_slug'])) {
             $role = Role::where('slug', $validated['role_slug'])->firstOrFail();
             $user->roles()->sync([$role->id]);
+
+            if ($role->slug === 'owner') {
+                $user->update(['outlet_id' => null]);
+            }
         }
 
         return response()->json(['success' => true, 'data' => $user->load(['roles', 'outlet'])]);

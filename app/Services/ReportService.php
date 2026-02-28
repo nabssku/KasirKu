@@ -54,13 +54,15 @@ class ReportService
 
     public function getTopSellingProducts(int $limit = 10): Collection
     {
-        return TransactionItem::select(
-            'product_id',
-            'product_name',
-            DB::raw('SUM(quantity) as total_quantity'),
-            DB::raw('SUM(subtotal) as total_revenue')
-        )
-            ->groupBy('product_id', 'product_name')
+        return Transaction::join('transaction_items', 'transactions.id', '=', 'transaction_items.transaction_id')
+            ->where('transactions.status', 'completed')
+            ->select(
+                'transaction_items.product_id',
+                'transaction_items.product_name',
+                DB::raw('SUM(transaction_items.quantity) as total_quantity'),
+                DB::raw('SUM(transaction_items.subtotal) as total_revenue')
+            )
+            ->groupBy('transaction_items.product_id', 'transaction_items.product_name')
             ->orderByDesc('total_quantity')
             ->limit($limit)
             ->get();

@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Core\Traits\BelongsToOutlet;
 use App\Core\Traits\BelongsToTenant;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -11,7 +12,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class BluetoothPrinter extends Model
 {
-    use HasFactory, HasUuids, BelongsToTenant, SoftDeletes;
+    use HasFactory, HasUuids, BelongsToTenant, BelongsToOutlet, SoftDeletes;
 
     protected $fillable = [
         'tenant_id',
@@ -19,6 +20,7 @@ class BluetoothPrinter extends Model
         'name',
         'mac_address',
         'is_default',
+        'type',
     ];
 
     protected $casts = [

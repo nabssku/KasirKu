@@ -35,6 +35,7 @@ class BluetoothPrinterController extends Controller
             'mac_address' => 'nullable|string|max:255',
             'outlet_id'   => 'nullable|uuid|exists:outlets,id',
             'is_default'  => 'boolean',
+            'type'        => 'sometimes|string|in:cashier,kitchen,both',
         ]);
 
         $tenantId = Auth::user()->tenant_id;
@@ -64,6 +65,7 @@ class BluetoothPrinterController extends Controller
             'name'        => 'sometimes|string|max:255',
             'mac_address' => 'nullable|string|max:255',
             'outlet_id'   => 'nullable|uuid|exists:outlets,id',
+            'type'        => 'sometimes|string|in:cashier,kitchen,both',
         ]);
 
         $printer->update($validated);

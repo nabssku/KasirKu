@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Core\Traits\BelongsToOutlet;
 use App\Core\Traits\BelongsToTenant;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -13,7 +14,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Product extends Model
 {
-    use HasFactory, HasUuids, BelongsToTenant, SoftDeletes;
+    use HasFactory, HasUuids, BelongsToTenant, BelongsToOutlet, SoftDeletes;
 
     protected $fillable = [
         'tenant_id',
@@ -60,5 +61,10 @@ class Product extends Model
     public function modifierGroups(): BelongsToMany
     {
         return $this->belongsToMany(ModifierGroup::class, 'product_modifier_groups');
+    }
+
+    public function shouldIncludeGlobalOutlets(): bool
+    {
+        return true;
     }
 }
