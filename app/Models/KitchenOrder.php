@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Core\Traits\Auditable;
 use App\Core\Traits\BelongsToOutlet;
 use App\Core\Traits\BelongsToTenant;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
@@ -12,7 +13,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class KitchenOrder extends Model
 {
-    use HasFactory, HasUuids, BelongsToTenant, BelongsToOutlet;
+    use HasFactory, HasUuids, BelongsToTenant, BelongsToOutlet, Auditable;
 
     protected $fillable = [
         'tenant_id',

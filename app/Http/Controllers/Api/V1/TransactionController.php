@@ -24,7 +24,7 @@ class TransactionController extends Controller
         $query = Transaction::with(['items', 'customer', 'user', 'payments', 'table']);
 
         if ($request->has('outlet_id')) {
-            $query->withoutGlobalScope(\App\Core\Scopes\OutletScope::class)->where('outlet_id', $request->outlet_id);
+            $query->where('outlet_id', $request->outlet_id);
         }
 
         if ($request->has('status')) {

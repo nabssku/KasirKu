@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Core\Traits\Auditable;
 use App\Core\Traits\BelongsToTenant;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -12,7 +13,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class ModifierGroup extends Model
 {
-    use HasFactory, HasUuids, BelongsToTenant, SoftDeletes;
+    use HasFactory, HasUuids, BelongsToTenant, SoftDeletes, Auditable;
 
     protected $fillable = [
         'tenant_id',

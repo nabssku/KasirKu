@@ -16,10 +16,11 @@ class ReportService
         return auth()->user()->tenant_id;
     }
 
-    public function getDailySales(string $date): array
+    public function getDailySales(string $date, ?string $outletId = null): array
     {
         $transactions = Transaction::whereDate('created_at', $date)
             ->where('status', 'completed')
+            ->when($outletId, fn ($q) => $q->where('outlet_id', $outletId))
             ->get();
 
         return [
@@ -31,11 +32,12 @@ class ReportService
         ];
     }
 
-    public function getMonthlyRevenue(int $year, int $month): array
+    public function getMonthlyRevenue(int $year, int $month, ?string $outletId = null): array
     {
         $sales = Transaction::whereYear('created_at', $year)
             ->whereMonth('created_at', $month)
             ->where('status', 'completed')
+            ->when($outletId, fn ($q) => $q->where('outlet_id', $outletId))
             ->select(
                 DB::raw('DATE(created_at) as date'),
                 DB::raw('SUM(grand_total) as revenue'),
@@ -52,10 +54,11 @@ class ReportService
         ];
     }
 
-    public function getTopSellingProducts(int $limit = 10): Collection
+    public function getTopSellingProducts(int $limit = 10, ?string $outletId = null): Collection
     {
         return Transaction::join('transaction_items', 'transactions.id', '=', 'transaction_items.transaction_id')
             ->where('transactions.status', 'completed')
+            ->when($outletId, fn ($q) => $q->where('transactions.outlet_id', $outletId))
             ->select(
                 'transaction_items.product_id',
                 'transaction_items.product_name',
@@ -68,10 +71,11 @@ class ReportService
             ->get();
     }
 
-    public function exportTransactionsToCsv(string $startDate, string $endDate): string
+    public function exportTransactionsToCsv(string $startDate, string $endDate, ?string $outletId = null): string
     {
         $transactions = Transaction::with(['user', 'customer'])
             ->whereBetween('created_at', [$startDate . ' 00:00:00', $endDate . ' 23:59:59'])
+            ->when($outletId, fn ($q) => $q->where('outlet_id', $outletId))
             ->get();
 
         $headers = ['Invoice Number', 'Date', 'User', 'Customer', 'Subtotal', 'Tax', 'Service Charge', 'Discount', 'Grand Total', 'Status'];
@@ -148,11 +152,12 @@ class ReportService
     /**
      * Sales by staff (user)
      */
-    public function getSalesByStaff(string $startDate, string $endDate): Collection
+    public function getSalesByStaff(string $startDate, string $endDate, ?string $outletId = null): Collection
     {
         return Transaction::join('users', 'transactions.user_id', '=', 'users.id')
             ->where('transactions.status', 'completed')
             ->whereBetween('transactions.created_at', [$startDate . ' 00:00:00', $endDate . ' 23:59:59'])
+            ->when($outletId, fn ($q) => $q->where('transactions.outlet_id', $outletId))
             ->select(
                 'users.id as user_id',
                 'users.name as user_name',
@@ -168,11 +173,12 @@ class ReportService
     /**
      * Sales by outlet
      */
-    public function getSalesByOutlet(string $startDate, string $endDate): Collection
+    public function getSalesByOutlet(string $startDate, string $endDate, ?string $outletId = null): Collection
     {
         return Transaction::join('outlets', 'transactions.outlet_id', '=', 'outlets.id')
             ->where('transactions.status', 'completed')
             ->whereBetween('transactions.created_at', [$startDate . ' 00:00:00', $endDate . ' 23:59:59'])
+            ->when($outletId, fn ($q) => $q->where('outlets.id', $outletId))
             ->select(
                 'outlets.id as outlet_id',
                 'outlets.name as outlet_name',

@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Core\Traits\Auditable;
 use App\Core\Traits\BelongsToOutlet;
 use App\Core\Traits\BelongsToTenant;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
@@ -14,7 +15,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Transaction extends Model
 {
-    use HasFactory, HasUuids, BelongsToTenant, BelongsToOutlet, SoftDeletes;
+    use HasFactory, HasUuids, BelongsToTenant, BelongsToOutlet, SoftDeletes, Auditable;
 
     protected $fillable = [
         'tenant_id',

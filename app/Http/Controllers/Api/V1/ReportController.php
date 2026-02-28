@@ -16,25 +16,28 @@ class ReportController extends Controller
 
     public function daily(Request $request): JsonResponse
     {
-        $date = $request->query('date', now()->format('Y-m-d'));
-        $data = $this->reportService->getDailySales($date);
+        $date     = $request->query('date', now()->format('Y-m-d'));
+        $outletId = $request->query('outlet_id');
+        $data     = $this->reportService->getDailySales($date, $outletId);
 
         return response()->json(['success' => true, 'data' => $data]);
     }
 
     public function monthly(Request $request): JsonResponse
     {
-        $year  = $request->query('year', now()->year);
-        $month = $request->query('month', now()->month);
-        $data  = $this->reportService->getMonthlyRevenue($year, $month);
+        $year     = $request->query('year', now()->year);
+        $month    = $request->query('month', now()->month);
+        $outletId = $request->query('outlet_id');
+        $data     = $this->reportService->getMonthlyRevenue($year, $month, $outletId);
 
         return response()->json(['success' => true, 'data' => $data]);
     }
 
     public function topProducts(Request $request): JsonResponse
     {
-        $limit = (int) $request->query('limit', 10);
-        $data  = $this->reportService->getTopSellingProducts($limit);
+        $limit    = (int) $request->query('limit', 10);
+        $outletId = $request->query('outlet_id');
+        $data     = $this->reportService->getTopSellingProducts($limit, $outletId);
 
         return response()->json(['success' => true, 'data' => $data]);
     }
@@ -43,8 +46,9 @@ class ReportController extends Controller
     {
         $startDate = $request->query('start_date', now()->subDays(30)->format('Y-m-d'));
         $endDate   = $request->query('end_date',   now()->format('Y-m-d'));
+        $outletId  = $request->query('outlet_id');
 
-        $csv      = $this->reportService->exportTransactionsToCsv($startDate, $endDate);
+        $csv      = $this->reportService->exportTransactionsToCsv($startDate, $endDate, $outletId);
         $filename = "transactions-{$startDate}-to-{$endDate}.csv";
 
         return Response::make($csv, 200, [
@@ -68,8 +72,9 @@ class ReportController extends Controller
     {
         $startDate = $request->query('start_date', now()->startOfMonth()->format('Y-m-d'));
         $endDate   = $request->query('end_date',   now()->format('Y-m-d'));
+        $outletId  = $request->query('outlet_id');
 
-        $data = $this->reportService->getSalesByStaff($startDate, $endDate);
+        $data = $this->reportService->getSalesByStaff($startDate, $endDate, $outletId);
 
         return response()->json(['success' => true, 'data' => $data]);
     }
@@ -78,8 +83,9 @@ class ReportController extends Controller
     {
         $startDate = $request->query('start_date', now()->startOfMonth()->format('Y-m-d'));
         $endDate   = $request->query('end_date',   now()->format('Y-m-d'));
+        $outletId  = $request->query('outlet_id');
 
-        $data = $this->reportService->getSalesByOutlet($startDate, $endDate);
+        $data = $this->reportService->getSalesByOutlet($startDate, $endDate, $outletId);
 
         return response()->json(['success' => true, 'data' => $data]);
     }

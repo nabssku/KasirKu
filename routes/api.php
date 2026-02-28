@@ -18,6 +18,7 @@ use App\Http\Controllers\Api\V1\TransactionController;
 use App\Http\Controllers\Api\V1\UserManagementController;
 use App\Http\Controllers\Api\V1\SuperAdminController;
 use App\Http\Controllers\Api\V1\ExpenseController;
+use App\Http\Controllers\Api\V1\AuditLogController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -82,10 +83,10 @@ Route::prefix('v1')->group(function () {
     // ─── Protected Routes ─────────────────────────────────────────────────────
     Route::middleware(['auth:api', 'tenant', 'subscription'])->group(function () {
 
-        // ── Outlets (Owner / Admin) ───────────────────────────────────────────
-        // ── Outlets (Owner / Admin Operational) ───────────────────────────────
+        // ── Outlets (Read: all roles, Write: Owner / Admin only) ─────────────
+        Route::apiResource('outlets', OutletController::class)->only(['index', 'show']);
         Route::middleware('role:super_admin,owner,admin')->group(function () {
-            Route::apiResource('outlets', OutletController::class);
+            Route::apiResource('outlets', OutletController::class)->except(['index', 'show']);
         });
 
         // ── User Management (Owner / Admin) ───────────────────────────────────
@@ -234,6 +235,7 @@ Route::prefix('v1')->group(function () {
         Route::post('/expenses', [ExpenseController::class, 'store']);
         Route::middleware('role:super_admin,owner,admin')->group(function () {
             Route::delete('/expenses/{id}', [ExpenseController::class, 'destroy']);
+            Route::get('/audit-logs', [AuditLogController::class, 'index']);
         });
     });
 });

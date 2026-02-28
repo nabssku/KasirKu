@@ -39,6 +39,11 @@ class Tenant extends Model
         return $this->hasMany(Product::class);
     }
 
+    public function subscriptions(): HasMany
+    {
+        return $this->hasMany(Subscription::class);
+    }
+
     public function subscription(): HasOne
     {
         return $this->hasOne(Subscription::class)->where('status', 'active');

@@ -19,7 +19,7 @@ trait BelongsToOutlet
         static::creating(function (Model $model) {
             // Automatically set the outlet_id from the authenticated user
             // if it's not explicitly set and the user has an outlet assignment.
-            if (auth()->check() && !$model->outlet_id) {
+            if (auth()->check() && !($model instanceof \App\Models\Outlet) && !$model->outlet_id) {
                 $user = auth()->user();
                 if ($user->outlet_id) {
                     $model->outlet_id = $user->outlet_id;

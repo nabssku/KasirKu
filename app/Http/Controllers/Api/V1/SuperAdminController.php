@@ -277,7 +277,6 @@ class SuperAdminController extends Controller
             'description'      => 'nullable|string',
             'is_active'        => 'boolean',
             'features'         => 'nullable|array',
-            'features.*'       => 'string',
         ]);
 
         $features = $validated['features'] ?? null;
@@ -285,12 +284,18 @@ class SuperAdminController extends Controller
 
         $plan->update($validated);
 
+        // Full sync: replace all features when provided
         if ($features !== null) {
+            // Delete all existing features first
+            PlanFeature::where('plan_id', $plan->id)->delete();
+
+            // Re-create from the submitted list
             foreach ($features as $key => $value) {
-                PlanFeature::updateOrCreate(
-                    ['plan_id' => $plan->id, 'feature_key' => $key],
-                    ['feature_value' => $value]
-                );
+                PlanFeature::create([
+                    'plan_id'       => $plan->id,
+                    'feature_key'   => $key,
+                    'feature_value' => $value,
+                ]);
             }
         }
 
