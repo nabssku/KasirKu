@@ -24,6 +24,9 @@ class StoreProductRequest extends FormRequest
             'min_stock' => ['nullable', 'integer', 'min:0'],
             'image' => ['nullable', 'image', 'mimes:jpeg,png,jpg,gif', 'max:2048'],
             'is_active' => ['nullable', 'boolean'],
+            'modifier_group_ids' => ['nullable', 'array'],
+            'modifier_group_ids.*' => ['uuid', 'exists:modifier_groups,id'],
+            'clear_modifier_groups' => ['nullable', 'string'],
         ];
     }
 }

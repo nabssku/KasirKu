@@ -12,6 +12,8 @@ class TransactionResource extends JsonResource
         return [
             'id'             => $this->id,
             'invoice_number' => $this->invoice_number,
+            'type'           => $this->type,
+            'table_id'       => $this->table_id,
             'subtotal'       => (float) $this->subtotal,
             'tax'            => (float) $this->tax,
             'discount'       => (float) $this->discount,
@@ -29,6 +31,10 @@ class TransactionResource extends JsonResource
                 'id'    => $this->customer->id,
                 'name'  => $this->customer->name,
                 'phone' => $this->customer->phone,
+            ] : null),
+            'table'          => $this->whenLoaded('table', fn() => $this->table ? [
+                'id'   => $this->table->id,
+                'name' => $this->table->name,
             ] : null),
             'items'          => $this->whenLoaded('items', fn() => $this->items->map(fn($item) => [
                 'id'           => $item->id,

@@ -21,7 +21,7 @@ class TransactionController extends Controller
         $perPage = (int) $request->query('per_page', 15);
         $user    = auth()->user();
 
-        $query = Transaction::with(['items', 'customer', 'user', 'payments'])
+        $query = Transaction::with(['items', 'customer', 'user', 'payments', 'table'])
             ->where('tenant_id', $user->tenant_id);
 
         if ($request->has('outlet_id')) {

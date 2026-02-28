@@ -6,6 +6,7 @@ use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
 use Illuminate\Support\Facades\Storage;
+use App\Http\Resources\ModifierGroupResource;
 
 class ProductResource extends JsonResource
 {
@@ -28,6 +29,7 @@ class ProductResource extends JsonResource
                 'id'   => $this->category->id,
                 'name' => $this->category->name,
             ]),
+            'modifier_groups' => ModifierGroupResource::collection($this->whenLoaded('modifierGroups')),
             'created_at'  => $this->created_at?->toISOString(),
             'updated_at'  => $this->updated_at?->toISOString(),
         ];

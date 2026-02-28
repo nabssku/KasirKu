@@ -30,7 +30,16 @@ class ProductService
             $data['image'] = $data['image']->store('products', 'public');
         }
 
-        return $this->repository->create($data);
+        $modifierGroupIds = $data['modifier_group_ids'] ?? [];
+        unset($data['modifier_group_ids']);
+
+        $product = $this->repository->create($data);
+
+        if (!empty($modifierGroupIds)) {
+            $product->modifierGroups()->sync($modifierGroupIds);
+        }
+
+        return $product;
     }
 
     public function updateProduct(string $id, array $data): bool
@@ -55,6 +64,14 @@ class ProductService
                 }
                 $data['image'] = null;
             }
+        }
+
+        if (array_key_exists('modifier_group_ids', $data)) {
+            $product->modifierGroups()->sync($data['modifier_group_ids'] ?? []);
+            unset($data['modifier_group_ids']);
+        } elseif (isset($data['clear_modifier_groups'])) {
+            $product->modifierGroups()->sync([]);
+            unset($data['clear_modifier_groups']);
         }
 
         return $this->repository->update($id, $data);

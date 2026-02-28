@@ -88,7 +88,7 @@ Route::prefix('v1')->group(function () {
         });
 
         // ── User Management (Owner / Admin) ───────────────────────────────────
-        Route::middleware('role:super_admin,owner,admin')->prefix('users')->group(function () {
+        Route::middleware('role:super_admin,owner,admin,cashier')->prefix('users')->group(function () {
             Route::get('/',           [UserManagementController::class, 'index']);
             Route::post('/',          [UserManagementController::class, 'store'])->middleware('plan.limit:users,max_users');
             Route::get('/{id}',       [UserManagementController::class, 'show']);

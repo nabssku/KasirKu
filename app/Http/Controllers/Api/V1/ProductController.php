@@ -23,7 +23,7 @@ class ProductController extends Controller
 
         return response()->json([
             'success' => true,
-            'data'    => ProductResource::collection($products->load('category')),
+            'data'    => ProductResource::collection($products->load(['category', 'modifierGroups.modifiers'])),
         ]);
     }
 
@@ -34,7 +34,7 @@ class ProductController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Product created successfully.',
-            'data'    => new ProductResource($product->load('category')),
+            'data'    => new ProductResource($product->load(['category', 'modifierGroups.modifiers'])),
         ], 201);
     }
 
@@ -48,7 +48,7 @@ class ProductController extends Controller
 
         return response()->json([
             'success' => true,
-            'data'    => new ProductResource($product->load('category')),
+            'data'    => new ProductResource($product->load(['category', 'modifierGroups.modifiers'])),
         ]);
     }
 
@@ -65,7 +65,7 @@ class ProductController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Product updated successfully.',
-            'data'    => new ProductResource($product->refresh()->load('category')),
+            'data'    => new ProductResource($product->refresh()->load(['category', 'modifierGroups.modifiers'])),
         ]);
     }
 
