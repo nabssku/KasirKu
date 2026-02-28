@@ -28,12 +28,27 @@ class ShiftController extends Controller
     public function index(Request $request): JsonResponse
     {
         $outletId = $request->query('outlet_id', auth()->user()->outlet_id);
+        $startDate = $request->query('start_date');
+        $endDate = $request->query('end_date');
+        $cashierId = $request->query('cashier_id');
 
-        $query = Shift::with(['openedBy', 'closedBy'])
+        $query = Shift::with(['openedBy', 'closedBy', 'outlet'])
             ->orderByDesc('opened_at');
 
         if ($outletId) {
             $query->where('outlet_id', $outletId);
+        }
+
+        if ($startDate) {
+            $query->whereDate('opened_at', '>=', $startDate);
+        }
+
+        if ($endDate) {
+            $query->whereDate('opened_at', '<=', $endDate);
+        }
+
+        if ($cashierId) {
+            $query->where('opened_by', $cashierId);
         }
 
         $shifts = $query->paginate((int) $request->query('per_page', 15));

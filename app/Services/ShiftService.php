@@ -43,24 +43,17 @@ class ShiftService
         }
 
         return DB::transaction(function () use ($shift, $data) {
-            // Calculate expected cash
-            $cashTransactions = $shift->transactions()
-                ->whereHas('payments', fn ($q) => $q->where('payment_method', 'cash'))
-                ->with('payments')
-                ->get()
-                ->flatMap(fn ($t) => $t->payments->where('payment_method', 'cash'))
-                ->sum('amount');
-
-            $cashIn       = $shift->cashDrawerLogs()->where('type', 'in')->sum('amount');
-            $cashOut      = $shift->cashDrawerLogs()->where('type', 'out')->sum('amount');
-            $expectedCash = (float) $shift->opening_cash + $cashTransactions + $cashIn - $cashOut;
-            $closingCash  = $data['closing_cash'] ?? 0;
+            $closingCash = $data['closing_cash'] ?? 0;
+            
+            // Temporary set for report calculation
+            $shift->closing_cash = $closingCash;
+            $report = $shift->report;
 
             $shift->update([
                 'closed_by'       => auth()->id(),
                 'closing_cash'    => $closingCash,
-                'expected_cash'   => $expectedCash,
-                'cash_difference' => $closingCash - $expectedCash,
+                'expected_cash'   => $report['expected_cash'],
+                'cash_difference' => $report['difference'],
                 'status'          => 'closed',
                 'closed_at'       => now(),
                 'notes'           => $data['notes'] ?? $shift->notes,

@@ -13,6 +13,8 @@ class Shift extends Model
 {
     use HasFactory, HasUuids, BelongsToTenant;
 
+    protected $appends = ['report'];
+
     protected $fillable = [
         'tenant_id',
         'outlet_id',
@@ -65,5 +67,62 @@ class Shift extends Model
     public function isOpen(): bool
     {
         return $this->status === 'open';
+    }
+
+    public function getReportAttribute(): array
+    {
+        $transactions = $this->transactions()->with(['payments'])->get();
+        
+        $grossSales = 0;
+        $refundTotal = 0;
+        $paymentBreakdown = [];
+
+        foreach ($transactions as $tx) {
+            if ($tx->status === 'completed') {
+                $grossSales += (float) $tx->grand_total;
+                foreach ($tx->payments as $payment) {
+                    $method = $payment->payment_method;
+                    $paymentBreakdown[$method] = ($paymentBreakdown[$method] ?? 0) + (float) $payment->amount;
+                }
+            } elseif ($tx->status === 'refunded') {
+                $refundTotal += (float) $tx->grand_total;
+                foreach ($tx->payments as $payment) {
+                    $method = $payment->payment_method;
+                    $paymentBreakdown[$method] = ($paymentBreakdown[$method] ?? 0) - (float) $payment->amount;
+                }
+            }
+        }
+
+        $cashIn = (float) $this->cashDrawerLogs()->where('type', 'in')->sum('amount');
+        $cashOut = (float) $this->cashDrawerLogs()->where('type', 'out')->sum('amount');
+
+        $netSales = $grossSales - $refundTotal;
+        $cashSalesNet = $paymentBreakdown['cash'] ?? 0;
+        
+        $expectedCash = (float) $this->opening_cash + $cashSalesNet + $cashIn - $cashOut;
+        $difference = $this->closing_cash !== null ? (float) $this->closing_cash - $expectedCash : 0;
+
+        $threshold = 50000;
+        $discrepancyStatus = 'OK';
+        if ($difference < 0) {
+            $discrepancyStatus = abs($difference) > $threshold ? 'Requires Approval' : 'Shortage';
+        } elseif ($difference > 0) {
+            $discrepancyStatus = 'Over';
+        }
+
+        return [
+            'gross_sales' => $grossSales,
+            'refund_total' => $refundTotal,
+            'net_sales' => $netSales,
+            'payment_breakdown' => $paymentBreakdown,
+            'cash_in' => $cashIn,
+            'cash_out' => $cashOut,
+            'expected_cash' => $expectedCash,
+            'actual_cash' => (float) $this->closing_cash,
+            'difference' => $difference,
+            'discrepancy_status' => $discrepancyStatus,
+            'opened_by_name' => $this->openedBy?->name,
+            'closed_by_name' => $this->closedBy?->name,
+        ];
     }
 }

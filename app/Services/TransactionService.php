@@ -6,12 +6,14 @@ use App\DTOs\TransactionDTO;
 use App\Models\Payment;
 use App\Models\Product;
 use App\Models\RestaurantTable;
+use App\Models\Shift;
 use App\Models\Transaction;
 use App\Models\TransactionItem;
 use App\Repositories\Contracts\TransactionRepositoryInterface;
 use App\Events\TransactionCompleted;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 
 class TransactionService
 {
@@ -26,6 +28,22 @@ class TransactionService
         return DB::transaction(function () use ($dto) {
             $user    = auth()->user();
             $outlet  = $user->outlet;
+
+            // Check for active shift
+            $shiftId = $dto->shift_id;
+            if (!$shiftId && $user->outlet_id) {
+                $currentShift = Shift::where('outlet_id', $user->outlet_id)
+                    ->where('status', 'open')
+                    ->first();
+                $shiftId = $currentShift?->id;
+            }
+
+            if (!$shiftId) {
+                throw ValidationException::withMessages([
+                    'shift' => 'Transaksi tidak dapat dilakukan karena tidak ada shift yang dibuka. Silakan buka shift terlebih dahulu.'
+                ]);
+            }
+
             $taxRate = $outlet?->tax_rate ?? 10;
             $scRate  = $outlet?->service_charge ?? 0;
 
@@ -71,7 +89,7 @@ class TransactionService
                 'user_id'        => $user->id,
                 'customer_id'    => $dto->customer_id,
                 'table_id'       => $dto->table_id,
-                'shift_id'       => $dto->shift_id,
+                'shift_id'       => $shiftId,
                 'invoice_number' => $this->repository->generateInvoiceNumber(),
                 'type'           => $dto->type ?? 'dine_in',
                 'subtotal'       => $subtotal,
@@ -159,6 +177,26 @@ class TransactionService
             $transaction = Transaction::findOrFail($id);
             $user        = auth()->user();
             $outlet      = $user->outlet;
+
+            // Check for active shift if completing or if shift is missing
+            $shiftId = $dto->shift_id ?? $transaction->shift_id;
+            if (!$shiftId && $user->outlet_id) {
+                $currentShift = Shift::where('outlet_id', $user->outlet_id)
+                    ->where('status', 'open')
+                    ->first();
+                $shiftId = $currentShift?->id;
+            }
+
+            // If we are completing a transaction, we MUST have an open shift
+            if ($dto->status === 'completed' || $transaction->status === 'completed') {
+                $checkShift = Shift::find($shiftId);
+                if (!$checkShift || !$checkShift->isOpen()) {
+                    throw ValidationException::withMessages([
+                        'shift' => 'Transaksi tidak dapat diperbarui/diselesaikan karena shift sudah tutup atau tidak ditemukan.'
+                    ]);
+                }
+            }
+
             $taxRate     = $outlet?->tax_rate ?? 10;
             $scRate      = $outlet?->service_charge ?? 0;
 
@@ -198,7 +236,7 @@ class TransactionService
             $transaction->update([
                 'customer_id'    => $dto->customer_id,
                 'table_id'       => $dto->table_id,
-                'shift_id'       => $dto->shift_id,
+                'shift_id'       => $shiftId,
                 'type'           => $dto->type ?? $transaction->type,
                 'subtotal'       => $subtotal,
                 'tax_rate'       => $taxRate,

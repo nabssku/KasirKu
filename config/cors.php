@@ -28,6 +28,8 @@ return [
         'https://jagokasirku.vercel.app',
         'http://100.125.254.53:5173',
         'http://192.168.56.1:5173',
+        'https://jagokasir.store',
+        'https://www.jagokasir.store',
     ],
 
     'allowed_origins_patterns' => [],
