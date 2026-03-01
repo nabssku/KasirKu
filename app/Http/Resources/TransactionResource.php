@@ -23,6 +23,12 @@ class TransactionResource extends JsonResource
             'payment_method' => $this->whenLoaded('payments', fn() => $this->payments->first()?->payment_method),
             'status'         => $this->status,
             'notes'          => $this->notes,
+            'cancel_reason'  => $this->cancel_reason,
+            'cancelled_at'   => $this->cancelled_at?->toISOString(),
+            'cancelled_by'   => $this->whenLoaded('cancelledBy', fn() => [
+                'id'   => $this->cancelledBy?->id,
+                'name' => $this->cancelledBy?->name,
+            ]),
             'cashier'        => $this->whenLoaded('user', fn() => [
                 'id'   => $this->user?->id,
                 'name' => $this->user?->name,

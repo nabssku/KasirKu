@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\Outlet;
 use App\Models\Shift;
 use App\Models\CashDrawerLog;
+use App\Models\Transaction;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -39,6 +40,17 @@ class ShiftService
         if (!$shift->isOpen()) {
             throw ValidationException::withMessages([
                 'shift' => 'This shift is already closed.',
+            ]);
+        }
+
+        // Check for active transactions
+        $activeTransactions = Transaction::where('shift_id', $shift->id)
+            ->whereIn('status', ['pending', 'open'])
+            ->exists();
+
+        if ($activeTransactions) {
+            throw ValidationException::withMessages([
+                'shift' => 'Masih ada transaksi aktif di shift ini. Selesaikan atau batalkan semua transaksi sebelum menutup shift.',
             ]);
         }
 

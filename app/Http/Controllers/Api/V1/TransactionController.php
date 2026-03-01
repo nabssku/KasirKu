@@ -56,7 +56,7 @@ class TransactionController extends Controller
             'customer_id'        => ['nullable', 'uuid', 'exists:customers,id'],
             'table_id'           => ['nullable', 'uuid', 'exists:restaurant_tables,id'],
             'shift_id'           => ['nullable', 'uuid', 'exists:shifts,id'],
-            'type'               => ['nullable', 'string', 'in:dine_in,takeaway,delivery'],
+            'type'               => ['nullable', 'string', 'in:dine_in,takeaway,delivery,walk_in,online'],
             'discount'           => ['nullable', 'numeric', 'min:0'],
             'paid_amount'        => [($request->status === 'pending' ? 'nullable' : 'required'), 'numeric', 'min:0'],
             'payment_method'     => [($request->status === 'pending' ? 'nullable' : 'required'), 'string', 'in:cash,bank_transfer,e-wallet'],
@@ -171,9 +171,31 @@ class TransactionController extends Controller
             'change_amount'  => (float) $transaction->change_amount,
             'payment_method' => $transaction->payments->first()?->method ?? 'cash',
             'status'         => $transaction->status,
+            'notes'          => $transaction->notes,
             'receipt_settings' => $outlet?->receipt_settings,
         ];
 
         return response()->json(['success' => true, 'data' => $receipt]);
+    }
+
+    public function cancel(Request $request, string $id): JsonResponse
+    {
+        $request->validate([
+            'notes' => 'required|string|min:3',
+        ]);
+
+        try {
+            $transaction = $this->transactionService->cancelTransaction($id, $request->notes);
+            return response()->json([
+                'success' => true,
+                'message' => 'Transaksi berhasil dibatalkan',
+                'data'    => new TransactionResource($transaction),
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+            ], 422);
+        }
     }
 }

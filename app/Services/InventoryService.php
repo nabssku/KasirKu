@@ -62,6 +62,57 @@ class InventoryService
     }
 
     /**
+     * Revert ingredient stock for all items in a transaction
+     * (e.g. when transaction is cancelled).
+     */
+    public function revertByTransaction(Transaction $transaction): void
+    {
+        DB::transaction(function () use ($transaction) {
+            foreach ($transaction->items as $item) {
+                $product = $item->product ?? Product::find($item->product_id);
+
+                if (!$product || !$product->has_recipe) {
+                    continue;
+                }
+
+                $recipe = $product->recipe()->with('items.ingredient')->first();
+                if (!$recipe) {
+                    continue;
+                }
+
+                $portionsNeeded = $item->quantity;
+
+                foreach ($recipe->items as $recipeItem) {
+                    $ingredient = $recipeItem->ingredient;
+                    if (!$ingredient) continue;
+
+                    $qtyToRestore = $recipeItem->quantity * $portionsNeeded;
+                    $qtyBefore    = $ingredient->current_stock;
+                    $qtyAfter     = $qtyBefore + $qtyToRestore;
+
+                    // Update ingredient stock
+                    $ingredient->update(['current_stock' => $qtyAfter]);
+
+                    // Record movement
+                    StockMovement::create([
+                        'tenant_id'      => $transaction->tenant_id,
+                        'outlet_id'      => $transaction->outlet_id,
+                        'ingredient_id'  => $ingredient->id,
+                        'type'           => 'in', // restored
+                        'quantity'       => $qtyToRestore,
+                        'quantity_before' => $qtyBefore,
+                        'quantity_after'  => $qtyAfter,
+                        'reference_type' => Transaction::class,
+                        'reference_id'   => $transaction->id,
+                        'notes'          => "Restored from cancelled transaction #{$transaction->invoice_number}",
+                        'created_by'     => auth()->id(),
+                    ]);
+                }
+            }
+        });
+    }
+
+    /**
      * Manual stock adjustment (admin action).
      */
     public function adjustStock(

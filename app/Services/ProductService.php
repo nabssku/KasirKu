@@ -15,9 +15,9 @@ class ProductService
         protected PlanLimitService $planLimit
     ) {}
 
-    public function getAllProducts(): Collection
+    public function getAllProducts(array $filters = []): Collection
     {
-        return $this->repository->all();
+        return $this->repository->list($filters);
     }
 
     public function createProduct(array $data): Product

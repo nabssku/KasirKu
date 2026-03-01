@@ -19,6 +19,7 @@ use App\Http\Controllers\Api\V1\UserManagementController;
 use App\Http\Controllers\Api\V1\SuperAdminController;
 use App\Http\Controllers\Api\V1\ExpenseController;
 use App\Http\Controllers\Api\V1\AuditLogController;
+use App\Http\Controllers\Api\V1\AiController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -186,6 +187,7 @@ Route::prefix('v1')->group(function () {
         Route::post('/transactions',              [TransactionController::class, 'store']);
         Route::get('/transactions/{id}',          [TransactionController::class, 'show']);
         Route::get('/transactions/{id}/receipt',  [TransactionController::class, 'receipt']);
+        Route::post('/transactions/{id}/cancel',  [TransactionController::class, 'cancel']);
         Route::put('/transactions/{id}',          [TransactionController::class, 'update']);
         Route::middleware('role:super_admin,owner,admin')->group(function () {
             Route::delete('/transactions/{id}', [TransactionController::class, 'destroy']);
@@ -223,6 +225,11 @@ Route::prefix('v1')->group(function () {
             Route::get('/by-staff',     [ReportController::class, 'byStaff']);
             Route::get('/by-outlet',    [ReportController::class, 'byOutlet']);
             Route::get('/dead-stock',   [ReportController::class, 'deadStock']);
+        });
+
+        // ── AI Assistant ──────────────────────────────────────────────────────
+        Route::middleware('role:super_admin,owner,admin')->prefix('ai')->group(function () {
+            Route::get('/context', [AiController::class, 'getContext']);
         });
 
         // ── Expenses (Admin+, Cashier can record) ──────────────────────────────

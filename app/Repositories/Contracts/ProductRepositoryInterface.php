@@ -9,4 +9,5 @@ interface ProductRepositoryInterface extends RepositoryInterface
 {
     public function getLowStockProducts(int $threshold): Collection;
     public function findBySku(string $sku): ?Product;
+    public function list(array $filters = []): Collection;
 }

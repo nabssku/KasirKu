@@ -24,6 +24,7 @@ class OutletController extends Controller
     {
         $validated = $request->validate([
             'name'           => ['required', 'string', 'max:255'],
+            'business_type'  => ['nullable', 'string', 'in:fnb,retail'],
             'address'        => ['nullable', 'string'],
             'phone'          => ['nullable', 'string'],
             'email'          => ['nullable', 'email'],
@@ -56,6 +57,7 @@ class OutletController extends Controller
 
         $validated = $request->validate([
             'name'           => ['sometimes', 'string', 'max:255'],
+            'business_type'  => ['nullable', 'string', 'in:fnb,retail'],
             'address'        => ['nullable', 'string'],
             'phone'          => ['nullable', 'string'],
             'email'          => ['nullable', 'email'],

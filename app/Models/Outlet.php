@@ -18,6 +18,7 @@ class Outlet extends Model
     protected $fillable = [
         'tenant_id',
         'name',
+        'business_type',
         'address',
         'phone',
         'email',
@@ -28,6 +29,7 @@ class Outlet extends Model
     ];
 
     protected $casts = [
+        'business_type'    => 'string',
         'tax_rate'         => 'decimal:2',
         'service_charge'   => 'decimal:2',
         'is_active'        => 'boolean',

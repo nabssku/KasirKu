@@ -36,6 +36,9 @@ class Transaction extends Model
         'change_amount',
         'status',
         'notes',
+        'cancelled_at',
+        'cancelled_by',
+        'cancel_reason',
     ];
 
     protected $casts = [
@@ -47,11 +50,17 @@ class Transaction extends Model
         'grand_total'    => 'decimal:2',
         'paid_amount'    => 'decimal:2',
         'change_amount'  => 'decimal:2',
+        'cancelled_at'   => 'datetime',
     ];
 
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function cancelledBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'cancelled_by');
     }
 
     public function customer(): BelongsTo

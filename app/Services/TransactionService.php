@@ -44,6 +44,13 @@ class TransactionService
                 ]);
             }
 
+            $checkShift = Shift::find($shiftId);
+            if (!$checkShift || !$checkShift->isOpen()) {
+                throw ValidationException::withMessages([
+                    'shift' => 'Shift ini sudah ditutup. Silakan buka shift baru untuk melakukan transaksi.'
+                ]);
+            }
+
             $taxRate = $outlet?->tax_rate ?? 10;
             $scRate  = $outlet?->service_charge ?? 0;
 
@@ -313,6 +320,54 @@ class TransactionService
     public function getTransaction(string $id): ?Transaction
     {
         return $this->repository->find($id);
+    }
+
+    public function cancelTransaction(string $id, string $reason): Transaction
+    {
+        return DB::transaction(function () use ($id, $reason) {
+            $transaction = Transaction::with(['items', 'table', 'payments'])->findOrFail($id);
+
+            if ($transaction->status === 'cancelled') {
+                throw ValidationException::withMessages([
+                    'status' => 'Transaksi ini sudah dibatalkan sebelumnya.'
+                ]);
+            }
+
+            // 1. Update transaction status and metadata
+            $transaction->update([
+                'status'        => 'cancelled',
+                'cancelled_at'  => now(),
+                'cancelled_by'  => auth()->id(),
+                'cancel_reason' => $reason,
+                'notes'         => $reason,
+            ]);
+
+            // 2. Revert product stock (for non-recipe products)
+            foreach ($transaction->items as $item) {
+                $product = Product::find($item->product_id);
+                if ($product && !$product->has_recipe) {
+                    $product->increment('stock', $item->quantity);
+                }
+            }
+
+            // 3. Revert ingredient stock (via InventoryService)
+            $this->inventoryService->revertByTransaction($transaction);
+
+            // 4. Handle table status
+            if ($transaction->table_id) {
+                // Check if there are other active (pending/open) transactions for this table
+                $activeOnTable = Transaction::where('table_id', $transaction->table_id)
+                    ->whereIn('status', ['pending', 'open'])
+                    ->where('id', '!=', $transaction->id)
+                    ->exists();
+
+                if (!$activeOnTable) {
+                    RestaurantTable::where('id', $transaction->table_id)->update(['status' => 'available']);
+                }
+            }
+
+            return $transaction->load(['items', 'customer', 'payments', 'cancelledBy']);
+        });
     }
 
     public function deleteTransaction(string $id): bool
