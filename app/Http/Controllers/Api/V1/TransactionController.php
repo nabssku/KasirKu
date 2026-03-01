@@ -140,7 +140,7 @@ class TransactionController extends Controller
      */
     public function receipt(string $id): JsonResponse
     {
-        $transaction = Transaction::with(['items', 'customer', 'user', 'outlet'])->findOrFail($id);
+        $transaction = Transaction::with(['items', 'customer', 'user', 'outlet', 'table'])->findOrFail($id);
 
         $outlet = $transaction->outlet;
 
@@ -153,6 +153,8 @@ class TransactionController extends Controller
             'cashier'        => $transaction->user?->name ?? 'Kasir',
             'customer'       => $transaction->customer?->name ?? 'Umum',
             'type'           => $transaction->type,
+            'table_id'       => $transaction->table_id,
+            'table_name'     => $transaction->table?->name,
             'items'          => $transaction->items->map(fn($item) => [
                 'name'     => $item->product_name,
                 'quantity' => $item->quantity,
