@@ -129,7 +129,7 @@ class AiController extends Controller
         return response()->json([
             'success' => true,
             'data' => [
-                'business_name' => 'JagoKasir POS',
+                'business_name' => 'JagoKasir',
                 'outlets_overview' => [
                     'total_outlets' => $totalOutlets,
                     'list' => $outletsList,
@@ -151,7 +151,7 @@ class AiController extends Controller
                         'transactions' => $dailySales['total_sales'],
                     ],
                     'tables' => [
-                        'total' => $tables->count(),
+                        'total' => count($tables),
                         'list' => $tables,
                     ],
                 ],
