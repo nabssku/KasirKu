@@ -9,11 +9,15 @@ use App\Models\PlanFeature;
 use App\Models\Subscription;
 use App\Models\Tenant;
 use App\Models\User;
+use App\Services\BayarGgService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 class SuperAdminController extends Controller
 {
+    public function __construct(
+        protected BayarGgService $bayarGg
+    ) {}
     // ─── Dashboard Stats ──────────────────────────────────────────────────────
 
     public function stats(): JsonResponse
@@ -361,5 +365,26 @@ class SuperAdminController extends Controller
             ->findOrFail($id);
 
         return response()->json(['success' => true, 'data' => $order]);
+    }
+
+    // ─── bayar.gg Payment Statistics ─────────────────────────────────────────
+
+    public function paymentStatistics(Request $request): JsonResponse
+    {
+        $period = $request->input('period', 'month');
+
+        $result = $this->bayarGg->getStatistics($period);
+
+        if (!($result['success'] ?? false)) {
+            return response()->json([
+                'success' => false,
+                'message' => $result['message'] ?? 'Failed to fetch payment statistics.',
+            ], 502);
+        }
+
+        return response()->json([
+            'success' => true,
+            'data'    => $result['data'] ?? $result,
+        ]);
     }
 }

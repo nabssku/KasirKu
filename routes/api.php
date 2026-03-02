@@ -34,7 +34,7 @@ Route::prefix('v1')->group(function () {
     Route::post('/auth/register', [AuthController::class, 'register']);
     Route::post('/auth/login',    [AuthController::class, 'login']);
 
-    // ─── Midtrans Webhook (no JWT, verify by signature) ───────────────────────
+    // ─── bayar.gg Webhook (no JWT, verify by HMAC signature) ──────────────────
     Route::post('/subscriptions/webhook', [SubscriptionController::class, 'webhook']);
 
     // ─── Subscription Plans (public) ──────────────────────────────────────────
@@ -62,6 +62,9 @@ Route::prefix('v1')->group(function () {
         // ── Orders / Revenue Tracking ─────────────────────────────────────────
         Route::get('/orders',                   [SuperAdminController::class, 'orders']);
         Route::get('/orders/{id}',              [SuperAdminController::class, 'showOrder']);
+
+        // ── bayar.gg Payment Statistics ───────────────────────────────────────
+        Route::get('/payment-statistics',       [SuperAdminController::class, 'paymentStatistics']);
     });
 
     // ─── Shared Auth Routes (works for all authenticated users incl. super_admin) ─
@@ -78,6 +81,7 @@ Route::prefix('v1')->group(function () {
             Route::get('/subscriptions/history',   [SubscriptionController::class, 'history']);
             Route::get('/subscriptions/usage',     [SubscriptionController::class, 'usage']);
             Route::post('/subscriptions/subscribe',[SubscriptionController::class, 'subscribe']);
+            Route::get('/subscriptions/check-payment/{invoice}', [SubscriptionController::class, 'checkPayment']);
         });
     });
 
@@ -134,7 +138,7 @@ Route::prefix('v1')->group(function () {
         Route::apiResource('customers', CustomerController::class);
 
         // ── Modifier Groups & Modifiers (Admin+) ──────────────────────────────
-        Route::middleware('role:super_admin,owner,admin')->group(function () {
+        Route::middleware(['role:super_admin,owner,admin', 'feature:modifiers'])->group(function () {
             Route::get('/modifier-groups',                              [ModifierController::class, 'indexGroups']);
             Route::post('/modifier-groups',                             [ModifierController::class, 'storeGroup'])->middleware('plan.limit:modifier_groups,max_modifiers');
             Route::get('/modifier-groups/{id}',                         [ModifierController::class, 'showGroup']);
@@ -146,7 +150,7 @@ Route::prefix('v1')->group(function () {
         });
 
         // ── Ingredients & Stock (Admin+) ──────────────────────────────────────
-        Route::middleware('role:super_admin,owner,admin')->group(function () {
+        Route::middleware(['role:super_admin,owner,admin', 'feature:inventory_basic'])->group(function () {
             Route::get('/ingredients/low-stock',    [IngredientController::class, 'lowStock']);
             Route::get('/ingredients',              [IngredientController::class, 'index']);
             Route::get('/ingredients/{ingredient}', [IngredientController::class, 'show']);
@@ -157,7 +161,7 @@ Route::prefix('v1')->group(function () {
         });
 
         // ── Recipes (Admin+) ──────────────────────────────────────────────────
-        Route::middleware('role:super_admin,owner,admin')->group(function () {
+        Route::middleware(['role:super_admin,owner,admin', 'feature:inventory_recipe'])->group(function () {
             Route::get('/products/{productId}/recipe',    [RecipeController::class, 'show']);
             Route::post('/products/{productId}/recipe',   [RecipeController::class, 'upsert']);
             Route::delete('/products/{productId}/recipe', [RecipeController::class, 'destroy']);
@@ -176,7 +180,7 @@ Route::prefix('v1')->group(function () {
         });
 
         // ── Kitchen Orders (Kitchen staff + Admin) ────────────────────────────
-        Route::middleware('role:super_admin,owner,admin,kitchen,cashier')->group(function () {
+        Route::middleware(['role:super_admin,owner,admin,kitchen,cashier', 'feature:kitchen_display'])->group(function () {
             Route::get('/kitchen-orders',              [KitchenOrderController::class, 'index']);
             Route::get('/kitchen-orders/{id}',         [KitchenOrderController::class, 'show']);
             Route::patch('/kitchen-orders/{id}/status',[KitchenOrderController::class, 'updateStatus']);
@@ -216,7 +220,7 @@ Route::prefix('v1')->group(function () {
         });
 
         // ── Reports ───────────────────────────────────────────────────────────
-        Route::middleware('role:super_admin,owner,admin')->prefix('reports')->group(function () {
+        Route::middleware(['role:super_admin,owner,admin', 'feature:advanced_reports'])->prefix('reports')->group(function () {
             Route::get('/daily',        [ReportController::class, 'daily']);
             Route::get('/monthly',      [ReportController::class, 'monthly']);
             Route::get('/top-products', [ReportController::class, 'topProducts']);
@@ -233,15 +237,20 @@ Route::prefix('v1')->group(function () {
         });
 
         // ── Expenses (Admin+, Cashier can record) ──────────────────────────────
-        Route::get('/expense-categories', [ExpenseController::class, 'indexCategories']);
-        Route::middleware('role:super_admin,owner,admin')->group(function () {
-            Route::post('/expense-categories', [ExpenseController::class, 'storeCategory']);
+        Route::middleware('feature:expenses')->group(function () {
+            Route::get('/expense-categories', [ExpenseController::class, 'indexCategories']);
+            Route::middleware('role:super_admin,owner,admin')->group(function () {
+                Route::post('/expense-categories', [ExpenseController::class, 'storeCategory']);
+            });
+
+            Route::get('/expenses', [ExpenseController::class, 'index']);
+            Route::post('/expenses', [ExpenseController::class, 'store']);
+            Route::middleware('role:super_admin,owner,admin')->group(function () {
+                Route::delete('/expenses/{id}', [ExpenseController::class, 'destroy']);
+            });
         });
 
-        Route::get('/expenses', [ExpenseController::class, 'index']);
-        Route::post('/expenses', [ExpenseController::class, 'store']);
-        Route::middleware('role:super_admin,owner,admin')->group(function () {
-            Route::delete('/expenses/{id}', [ExpenseController::class, 'destroy']);
+        Route::middleware(['role:super_admin,owner,admin', 'feature:audit_log'])->group(function () {
             Route::get('/audit-logs', [AuditLogController::class, 'index']);
         });
     });

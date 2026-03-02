@@ -4,7 +4,9 @@ namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
 use App\Models\Plan;
+use App\Models\PaymentTransaction;
 use App\Models\Subscription;
+use App\Services\BayarGgService;
 use App\Services\PlanLimitService;
 use App\Services\SubscriptionService;
 use Illuminate\Http\JsonResponse;
@@ -14,7 +16,8 @@ class SubscriptionController extends Controller
 {
     public function __construct(
         protected SubscriptionService $subscriptionService,
-        protected PlanLimitService $planLimit
+        protected PlanLimitService    $planLimit,
+        protected BayarGgService      $bayarGg
     ) {}
 
     public function plans(): JsonResponse
@@ -48,8 +51,8 @@ class SubscriptionController extends Controller
         return response()->json([
             'success' => true,
             'data'    => [
-                'subscription' => $subscription,
-                'tenant_name'  => $tenant->name,
+                'subscription'  => $subscription,
+                'tenant_name'   => $tenant->name,
                 'tenant_status' => $tenant->status,
             ],
         ]);
@@ -73,20 +76,52 @@ class SubscriptionController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => 'Payment transaction created. Proceed with Midtrans payment.',
+            'message' => 'Payment transaction created. Proceed to bayar.gg payment page.',
             'data'    => [
                 'payment_transaction' => $paymentTx,
-                'snap_token'          => $paymentTx->snap_token,
-                'client_key'          => config('services.midtrans.client_key'),
+                'payment_url'         => $paymentTx->payment_url,
+                'invoice_id'          => $paymentTx->invoice_id,
+                'final_amount'        => $paymentTx->final_amount,
             ],
         ], 201);
     }
 
+    /**
+     * Check payment status by invoice ID (used by frontend polling).
+     */
+    public function checkPayment(string $invoice): JsonResponse
+    {
+        // This will call bayar.gg API, update local PaymentTransaction,
+        // and activate subscription if status is 'paid'.
+        $status = $this->subscriptionService->syncPaymentStatus($invoice);
+        
+        $paymentTx = PaymentTransaction::where('invoice_id', $invoice)->first();
+
+        return response()->json([
+            'success'      => $status !== 'not_found',
+            'invoice_id'   => $invoice,
+            'status'       => $status,
+            'amount'       => $paymentTx?->amount,
+            'final_amount' => $paymentTx?->final_amount,
+            'paid_at'      => $paymentTx?->paid_at,
+            'expires_at'   => $paymentTx?->created_at?->addHours(24),
+        ]);
+    }
+
+    /**
+     * Webhook endpoint for bayar.gg payment callbacks.
+     *
+     * bayar.gg sends signature in HTTP headers:
+     *   X-Webhook-Signature  — HMAC-SHA256 digest
+     *   X-Webhook-Timestamp  — unix timestamp
+     */
     public function webhook(Request $request): JsonResponse
     {
-        $payload = $request->all();
+        $payload         = $request->all();
+        $headerSignature = $request->header('X-Webhook-Signature');
+        $headerTimestamp = $request->header('X-Webhook-Timestamp');
 
-        $this->subscriptionService->handleWebhook($payload);
+        $this->subscriptionService->handleWebhook($payload, $headerSignature, $headerTimestamp);
 
         return response()->json(['success' => true]);
     }

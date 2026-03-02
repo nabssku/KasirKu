@@ -23,6 +23,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'role'         => \App\Http\Middleware\CheckRole::class,
             'permission'   => \App\Http\Middleware\CheckPermission::class,
             'plan.limit'   => \App\Http\Middleware\CheckPlanLimit::class,
+            'feature'      => \App\Http\Middleware\CheckFeatureAccess::class,
         ]);
 
         //

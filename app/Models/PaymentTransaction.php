@@ -18,6 +18,9 @@ class PaymentTransaction extends Model
         'amount',
         'gateway',
         'gateway_order_id',
+        'invoice_id',
+        'payment_url',
+        'final_amount',
         'snap_token',
         'gateway_transaction_id',
         'status',
@@ -27,6 +30,7 @@ class PaymentTransaction extends Model
 
     protected $casts = [
         'amount'          => 'decimal:2',
+        'final_amount'    => 'integer',
         'gateway_payload' => 'array',
         'paid_at'         => 'datetime',
     ];

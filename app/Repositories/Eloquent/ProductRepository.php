@@ -28,7 +28,10 @@ class ProductRepository extends BaseRepository implements ProductRepositoryInter
         $query = $this->model->query();
 
         if (!empty($filters['outlet_id'])) {
-            $query->where('outlet_id', $filters['outlet_id']);
+            $query->where(function ($q) use ($filters) {
+                $q->where('outlet_id', $filters['outlet_id'])
+                  ->orWhereNull('outlet_id');
+            });
         }
 
         if (!empty($filters['category_id'])) {
