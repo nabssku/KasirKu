@@ -76,8 +76,11 @@ Route::prefix('v1')->group(function () {
 
     // ─── Subscription Viewing & Purchase (no subscription middleware — owners must see even if expired) ───
     Route::middleware(['auth:api', 'tenant'])->group(function () {
+        // current() is accessible by ALL authenticated tenant roles (cashier needs it for POS feature gating)
+        Route::get('/subscriptions/current', [SubscriptionController::class, 'current']);
+
+        // Management routes restricted to owner / super_admin only
         Route::middleware('role:super_admin,owner')->group(function () {
-            Route::get('/subscriptions/current',   [SubscriptionController::class, 'current']);
             Route::get('/subscriptions/history',   [SubscriptionController::class, 'history']);
             Route::get('/subscriptions/usage',     [SubscriptionController::class, 'usage']);
             Route::post('/subscriptions/subscribe',[SubscriptionController::class, 'subscribe']);
