@@ -25,11 +25,20 @@ class RestaurantTable extends Model
         'status',
         'floor',
         'sort_order',
+        'qr_token',
+        'qr_enabled',
+        'qr_generated_at',
+    ];
+
+    protected $appends = [
+        'qr_url',
     ];
 
     protected $casts = [
-        'capacity'   => 'integer',
-        'sort_order' => 'integer',
+        'capacity'        => 'integer',
+        'sort_order'      => 'integer',
+        'qr_enabled'      => 'boolean',
+        'qr_generated_at' => 'datetime',
     ];
 
     public function outlet(): BelongsTo
@@ -39,11 +48,29 @@ class RestaurantTable extends Model
 
     public function activeTransaction(): HasOne
     {
-        return $this->hasOne(Transaction::class, 'table_id')->whereIn('status', ['pending', 'in_progress']);
+        return $this->hasOne(Transaction::class, 'table_id')->whereIn('status', ['pending', 'in_progress', 'pending_payment']);
+    }
+
+    public function selfOrderSessions(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(SelfOrderSession::class, 'table_id');
+    }
+
+    public function hasQrEnabled(): bool
+    {
+        return $this->qr_enabled && !empty($this->qr_token);
     }
 
     public function isAvailable(): bool
     {
         return $this->status === 'available';
+    }
+
+    public function getQrUrlAttribute(): ?string
+    {
+        if (empty($this->qr_token)) return null;
+
+        $frontendUrl = rtrim(config('app.frontend_url', env('FRONTEND_URL', 'http://localhost:5173')), '/');
+        return "{$frontendUrl}/menu/table/{$this->qr_token}";
     }
 }

@@ -20,6 +20,8 @@ use App\Http\Controllers\Api\V1\SuperAdminController;
 use App\Http\Controllers\Api\V1\ExpenseController;
 use App\Http\Controllers\Api\V1\AuditLogController;
 use App\Http\Controllers\Api\V1\AiController;
+use App\Http\Controllers\Api\V1\SelfOrderController;
+use App\Http\Controllers\Api\V1\TableQrController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -36,6 +38,15 @@ Route::prefix('v1')->group(function () {
 
     // ─── bayar.gg Webhook (no JWT, verify by HMAC signature) ──────────────────
     Route::post('/subscriptions/webhook', [SubscriptionController::class, 'webhook']);
+
+    // ─── QR Self Order Public API (rate limited, no auth) ────────────────────
+    Route::prefix('public')->middleware('throttle:30,1')->group(function () {
+        Route::get('/table/{qr_token}',            [SelfOrderController::class, 'resolveTable']);
+        Route::get('/menu/{outlet_id}',            [SelfOrderController::class, 'menu']);
+        Route::post('/self-order/session',         [SelfOrderController::class, 'createSession']);
+        Route::post('/self-order',                 [SelfOrderController::class, 'submitOrder']);
+        Route::get('/self-order/{sessionToken}/status', [SelfOrderController::class, 'orderStatus']);
+    });
 
     // ─── Subscription Plans (public) ──────────────────────────────────────────
     Route::get('/plans', [SubscriptionController::class, 'plans']);
@@ -177,6 +188,10 @@ Route::prefix('v1')->group(function () {
             Route::post('/tables',              [TableController::class, 'store']);
             Route::put('/tables/{id}',          [TableController::class, 'update']);
             Route::delete('/tables/{id}',       [TableController::class, 'destroy']);
+            // QR Self Order management
+            Route::post('/tables/{id}/qr/generate',  [TableQrController::class, 'generate']);
+            Route::patch('/tables/{id}/qr/toggle',   [TableQrController::class, 'toggle']);
+            Route::get('/tables/{id}/qr',            [TableQrController::class, 'show']);
         });
         Route::middleware('role:super_admin,owner,admin,cashier')->group(function () {
             Route::patch('/tables/{id}/status', [TableController::class, 'updateStatus']);
