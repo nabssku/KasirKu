@@ -35,6 +35,7 @@ Route::prefix('v1')->group(function () {
     // ─── Public Auth Routes ───────────────────────────────────────────────────
     Route::post('/auth/register', [AuthController::class, 'register']);
     Route::post('/auth/login',    [AuthController::class, 'login']);
+    Route::post('/auth/refresh',  [AuthController::class, 'refresh']);
 
     // ─── bayar.gg Webhook (no JWT, verify by HMAC signature) ──────────────────
     Route::post('/subscriptions/webhook', [SubscriptionController::class, 'webhook']);
@@ -81,7 +82,6 @@ Route::prefix('v1')->group(function () {
     // ─── Shared Auth Routes (works for all authenticated users incl. super_admin) ─
     Route::middleware(['auth:api'])->prefix('auth')->group(function () {
         Route::post('/logout',  [AuthController::class, 'logout']);
-        Route::post('/refresh', [AuthController::class, 'refresh']);
         Route::get('/me',       [AuthController::class, 'me']);
     });
 
@@ -179,6 +179,11 @@ Route::prefix('v1')->group(function () {
             Route::get('/products/{productId}/recipe',    [RecipeController::class, 'show']);
             Route::post('/products/{productId}/recipe',   [RecipeController::class, 'upsert']);
             Route::delete('/products/{productId}/recipe', [RecipeController::class, 'destroy']);
+
+            // Supporting the frontend route format: /recipes/{id}
+            Route::get('/recipes/{productId}',    [RecipeController::class, 'show']);
+            Route::post('/recipes/{productId}',   [RecipeController::class, 'upsert']);
+            Route::delete('/recipes/{productId}', [RecipeController::class, 'destroy']);
         });
 
         // ── Tables (Admin+, Cashier can read) ─────────────────────────────────

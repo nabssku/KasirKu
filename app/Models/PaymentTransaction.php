@@ -14,6 +14,8 @@ class PaymentTransaction extends Model
 
     protected $fillable = [
         'tenant_id',
+        'transaction_id',
+        'outlet_id',
         'type',
         'amount',
         'gateway',
@@ -26,6 +28,7 @@ class PaymentTransaction extends Model
         'status',
         'gateway_payload',
         'paid_at',
+        'expires_at',
     ];
 
     protected $casts = [

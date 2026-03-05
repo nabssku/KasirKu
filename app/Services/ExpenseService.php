@@ -81,7 +81,42 @@ class ExpenseService
                 'date'             => $data['date'] ?? now()->toDateString(),
                 'attachment'       => $data['attachment'] ?? null,
                 'shift_id'         => $data['shift_id'] ?? null,
+                'type'             => $data['type'] ?? 'operational',
             ]);
+
+            // Handle ingredient purchases if type is ingredient_purchase
+            if ($expense->type === 'ingredient_purchase' && !empty($data['items'])) {
+                foreach ($data['items'] as $item) {
+                    $ingredient = \App\Models\Ingredient::findOrFail($item['ingredient_id']);
+                    
+                    // Create ingredient purchase record
+                    \App\Models\IngredientPurchase::create([
+                        'expense_id'    => $expense->id,
+                        'ingredient_id' => $ingredient->id,
+                        'quantity'      => $item['quantity'],
+                        'unit_price'    => $item['unit_price'],
+                        'total_price'   => $item['quantity'] * $item['unit_price'],
+                    ]);
+
+                    // Record stock movement
+                    $quantityBefore = $ingredient->current_stock;
+                    $ingredient->increment('current_stock', $item['quantity']);
+                    
+                    \App\Models\StockMovement::create([
+                        'tenant_id'      => $expense->tenant_id,
+                        'outlet_id'      => $expense->outlet_id,
+                        'ingredient_id'  => $ingredient->id,
+                        'type'           => 'in',
+                        'quantity'       => $item['quantity'],
+                        'quantity_before' => $quantityBefore,
+                        'quantity_after'  => $ingredient->current_stock,
+                        'reference_type' => Expense::class,
+                        'reference_id'   => $expense->id,
+                        'notes'          => "Purchase via Expense: " . $expense->reference_number,
+                        'created_by'     => auth()->id(),
+                    ]);
+                }
+            }
 
             // If payment method is cash, integrate with CashDrawerLog
             if ($data['payment_method'] === 'cash') {
@@ -97,7 +132,7 @@ class ExpenseService
                     $this->shiftService->addCashDrawerLog($shift, [
                         'type'   => 'out',
                         'amount' => $data['amount'],
-                        'reason' => "Expense: " . ($expense->category->name ?? 'General') . " - " . ($data['notes'] ?? ''),
+                        'reason' => "Expense [{$expense->type}]: " . ($expense->category->name ?? 'General') . " - " . ($data['notes'] ?? ''),
                     ]);
                 }
             }

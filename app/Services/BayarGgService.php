@@ -72,12 +72,23 @@ class BayarGgService
     public function checkPayment(string $invoiceId): array
     {
         try {
+            // Returning to /check-payment (no .php) as per user's manual curl example
             $response = $this->client()->get("{$this->baseUrl}/check-payment", [
                 'invoice' => $invoiceId,
             ]);
 
             if ($response->successful()) {
-                return $response->json();
+                $json = $response->json();
+                
+                // Normalise: BayarGG usually wraps status inside 'data', but some versions might be flat
+                $data = $json['data'] ?? $json;
+                
+                // Ensure success flag and top-level fields for easy access
+                return array_merge($data, [
+                    'success'    => $json['success'] ?? true,
+                    'status'     => $data['status'] ?? 'pending',
+                    'invoice_id' => $data['invoice_id'] ?? $invoiceId
+                ]);
             }
 
             Log::error('BayarGg checkPayment error', [
@@ -86,7 +97,7 @@ class BayarGgService
                 'invoice_id' => $invoiceId,
             ]);
 
-            return ['success' => false, 'message' => 'Failed to check payment'];
+            return ['success' => false, 'message' => 'Failed to check payment: ' . $response->body()];
         } catch (\Exception $e) {
             Log::error('BayarGg checkPayment exception', ['error' => $e->getMessage()]);
             return ['success' => false, 'message' => $e->getMessage()];

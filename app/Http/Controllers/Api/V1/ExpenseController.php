@@ -62,6 +62,13 @@ class ExpenseController extends Controller
 
     public function store(Request $request): JsonResponse
     {
+        if ($request->has('items') && is_string($request->items)) {
+            $decoded = json_decode($request->items, true);
+            if (is_array($decoded)) {
+                $request->merge(['items' => $decoded]);
+            }
+        }
+
         $validator = Validator::make($request->all(), [
             'outlet_id'      => 'required|exists:outlets,id',
             'category_id'    => 'required|exists:expense_categories,id',
@@ -72,6 +79,11 @@ class ExpenseController extends Controller
             'reference_number' => 'nullable|string',
             'attachment'     => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:2048',
             'shift_id'       => 'nullable|exists:shifts,id',
+            'type'           => 'required|in:operational,ingredient_purchase',
+            'items'          => 'required_if:type,ingredient_purchase|array',
+            'items.*.ingredient_id' => 'required_with:items|exists:ingredients,id',
+            'items.*.quantity'      => 'required_with:items|numeric|min:0.0001',
+            'items.*.unit_price'    => 'required_with:items|numeric|min:0',
         ]);
 
         if ($validator->fails()) {

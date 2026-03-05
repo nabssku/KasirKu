@@ -28,9 +28,9 @@ class Ingredient extends Model
     ];
 
     protected $casts = [
-        'cost_per_unit'  => 'decimal:4',
-        'current_stock'  => 'decimal:4',
-        'min_stock'      => 'decimal:4',
+        'cost_per_unit'  => 'double',
+        'current_stock'  => 'double',
+        'min_stock'      => 'double',
     ];
 
     public function outlet(): BelongsTo

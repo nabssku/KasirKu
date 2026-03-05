@@ -26,6 +26,7 @@ class Expense extends Model
         'notes',
         'date',
         'attachment',
+        'type',
     ];
 
     protected $casts = [
@@ -51,5 +52,10 @@ class Expense extends Model
     public function shift(): BelongsTo
     {
         return $this->belongsTo(Shift::class);
+    }
+
+    public function ingredientPurchases(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(IngredientPurchase::class);
     }
 }

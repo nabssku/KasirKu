@@ -79,7 +79,10 @@ class Shift extends Model
         $paymentBreakdown = [];
 
         foreach ($transactions as $tx) {
-            if ($tx->status === 'completed') {
+            // Count completed OR paid (self-order successful payments)
+            $isPaid = in_array($tx->status, ['completed', 'paid', 'preparing', 'ready']);
+
+            if ($isPaid) {
                 $grossSales += (float) $tx->grand_total;
                 foreach ($tx->payments as $payment) {
                     $method = $payment->payment_method;

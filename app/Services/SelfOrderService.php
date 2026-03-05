@@ -15,6 +15,7 @@ use App\Models\TransactionItem;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
@@ -23,6 +24,7 @@ class SelfOrderService
     public function __construct(
         protected BayarGgService      $bayarGg,
         protected KitchenOrderService $kitchenOrderService,
+        protected ShiftService        $shiftService,
     ) {}
 
     // ──────────────────────────────────────────────────────────────────────────
@@ -204,10 +206,22 @@ class SelfOrderService
                 'customer_email' => 'tamu@self-order.local',
                 'redirect_url'   => $redirectUrl,
                 'payment_method' => 'gopay_qris',
+
             ]);
 
             $invoiceId  = $paymentResponse['data']['invoice_id']  ?? $paymentResponse['invoice_id']  ?? null;
             $paymentUrl = $paymentResponse['data']['payment_url'] ?? $paymentResponse['payment_url'] ?? null;
+            $final_amount = $paymentResponse['data']['final_amount'] ?? $paymentResponse['final_amount'] ?? null;
+
+            // ── g2. Generate Dynamic QRIS (Static to Dynamic) ────────────────
+            $baseQris = "00020101021126610014COM.GO-JEK.WWW01189360091439981678490210G9981678490303UMI51440014ID.CO.QRIS.WWW0215ID10264896514830303UMI5204899953033605802ID5924jagokasir.store, Digital6006MALANG61056512362070703A0163040E80";
+            if ($final_amount && isset($paymentResponse['data'])) {
+                $convertedQris = $this->generateDynamicQris($baseQris, (int)$final_amount);
+                $paymentResponse['data']['qris_converter'] = [
+                    'original_qris'  => $baseQris,
+                    'converted_qris' => $convertedQris
+                ];
+            }
 
             if (!$invoiceId) {
                 // Roll back — transaction will not be kept (DB::transaction handles this)
@@ -224,9 +238,10 @@ class SelfOrderService
                 'type'           => 'self_order_payment',
                 'amount'         => $grandTotal,
                 'gateway'        => 'bayargg',
+                'gateway_order_id' => $invoiceNumber,
                 'invoice_id'     => $invoiceId,
                 'payment_url'    => $paymentUrl,
-                'final_amount'   => (int) $grandTotal,
+                'final_amount'   => (int) $final_amount,
                 'status'         => 'pending',
                 'expires_at'     => $paymentExpiry,
                 'gateway_payload' => $paymentResponse,
@@ -234,6 +249,7 @@ class SelfOrderService
 
             return [
                 'transaction'   => $transaction,
+                'paymentResponse' => $paymentResponse,
                 'payment_url'   => $paymentUrl,
                 'invoice_id'    => $invoiceId,
                 'expires_at'    => $paymentExpiry->toIso8601String(),
@@ -247,40 +263,58 @@ class SelfOrderService
     // ──────────────────────────────────────────────────────────────────────────
     public function syncPaymentStatus(string $invoiceId): string
     {
-        $paymentTx = PaymentTransaction::where('invoice_id', $invoiceId)
-            ->where('type', 'self_order_payment')
+        // Use withoutGlobalScopes as this might be called from a public context
+        $paymentTx = PaymentTransaction::withoutGlobalScopes()
+            ->where('invoice_id', $invoiceId)
             ->first();
 
         if (!$paymentTx) return 'not_found';
 
-        // Skip if already processed
-        if (in_array($paymentTx->status, ['paid', 'failed', 'expired'])) {
-            return $paymentTx->status;
-        }
+        // Check API regardless of local status to handle desyncs
+        // between PaymentTransaction and Transaction tables.
+
 
         $result = $this->bayarGg->checkPayment($invoiceId);
-        if (!($result['success'] ?? false)) {
-            Log::warning('SelfOrder payment check failed', ['invoice_id' => $invoiceId]);
+
+        // BayarGG may respond with success=false on network/auth error
+        if (!($result['success'] ?? true)) {
+            Log::warning('SelfOrder payment check failed', [
+                'invoice_id' => $invoiceId,
+                'response'   => $result,
+            ]);
             return $paymentTx->status;
         }
 
+        // Now flattened thanks to BayarGgService normalization
         $remoteStatus = $result['status'] ?? 'pending';
         $newStatus    = $this->mapGatewayStatus($remoteStatus);
 
-        if ($newStatus !== $paymentTx->status) {
-            $paymentTx->update([
-                'status'          => $newStatus,
-                'gateway_payload' => $result,
-                'paid_at'         => $newStatus === 'paid' ? now() : null,
-            ]);
+        Log::info('SelfOrder payment check', [
+            'invoice_id'    => $invoiceId,
+            'remote_status' => $remoteStatus,
+            'new_status'    => $newStatus,
+            'local_status'  => $paymentTx->status,
+        ]);
 
-            $transaction = Transaction::with(['items.modifiers', 'table'])
+        // Even if local paymentTx is already fixed, we should ensure the transaction is synced
+        // if the remote status is paid.
+        if ($newStatus !== $paymentTx->status || ($newStatus === 'paid' && $paymentTx->status === 'paid')) {
+            if ($newStatus !== $paymentTx->status) {
+                $paymentTx->update([
+                    'status'          => $newStatus,
+                    'gateway_payload' => $result,
+                    'paid_at'         => $newStatus === 'paid' ? now() : null,
+                ]);
+            }
+
+            $transaction = Transaction::withoutGlobalScopes()
+                ->with(['items.modifiers', 'table'])
                 ->find($paymentTx->transaction_id);
 
             if ($transaction) {
-                if ($newStatus === 'paid') {
+                if ($newStatus === 'paid' && $transaction->status === 'pending_payment') {
                     $this->confirmPayment($transaction, $paymentTx);
-                } elseif (in_array($newStatus, ['failed', 'expired'])) {
+                } elseif (in_array($newStatus, ['failed', 'expired']) && $transaction->status === 'pending_payment') {
                     $this->cancelTransaction($transaction);
                 }
             }
@@ -300,42 +334,108 @@ class SelfOrderService
             throw ValidationException::withMessages(['session' => 'Sesi tidak ditemukan.']);
         }
 
-        $transaction = Transaction::with(['kitchenOrder'])
+        // Use withoutGlobalScopes to avoid outlet/tenant scope interference on public endpoint
+        $transaction = Transaction::withoutGlobalScopes()
+            ->with(['kitchenOrder'])
             ->where('outlet_id', $session->outlet_id)
             ->where('table_id', $session->table_id)
+            ->where('source', 'self_order')
             ->whereIn('status', ['pending_payment', 'paid', 'preparing', 'ready', 'completed'])
             ->latest()
             ->first();
 
-        // Trigger payment sync if still pending
-        if ($transaction && $transaction->status === 'pending_payment') {
-            $paymentTx = PaymentTransaction::where('transaction_id', $transaction->id)
+        $paymentChecking = false;
+        $activePayment   = null;
+
+        if ($transaction) {
+            // 1. Always look for the payment record if transaction exists
+            $activePayment = PaymentTransaction::withoutGlobalScopes()
+                ->where('transaction_id', $transaction->id)
                 ->where('type', 'self_order_payment')
+                ->latest()
                 ->first();
-            if ($paymentTx && $paymentTx->invoice_id) {
-                $this->syncPaymentStatus($paymentTx->invoice_id);
-                // Reload to get updated status
-                $transaction->refresh();
-                $transaction->load('kitchenOrder');
+
+            // Fallback for old records
+            if (!$activePayment) {
+                Log::debug('SelfOrder: activePayment not found by transaction_id, trying fallback', [
+                    'session_token' => $sessionToken,
+                    'outlet_id'     => $session->outlet_id,
+                ]);
+                $activePayment = PaymentTransaction::withoutGlobalScopes()
+                    ->where('type', 'self_order_payment')
+                    ->where('outlet_id', $session->outlet_id)
+                    ->whereNotNull('invoice_id')
+                    ->where('created_at', '>=', $transaction->created_at->subMinutes(30))
+                    ->latest()
+                    ->first();
+                
+                if ($activePayment && !$activePayment->transaction_id) {
+                    $activePayment->update(['transaction_id' => $transaction->id]);
+                }
+            }
+
+            Log::debug('SelfOrder: getOrderStatus check', [
+                'transaction_id'   => $transaction->id,
+                'status'           => $transaction->status,
+                'active_payment'   => $activePayment ? $activePayment->id : null,
+                'payment_status'   => $activePayment ? $activePayment->status : null,
+                'payment_invoice'  => $activePayment ? $activePayment->invoice_id : null,
+            ]);
+
+            // 2. Trigger sync if transaction is still pending_payment
+            // We do this even if $activePayment->status is already 'paid' to handle desyncs
+            if ($transaction->status === 'pending_payment' && $activePayment && !in_array($activePayment->status, ['failed', 'expired'])) {
+                $paymentChecking = true;
+                $newStatus = $this->syncPaymentStatus($activePayment->invoice_id);
+                
+                if ($newStatus === 'paid') {
+                    $transaction->refresh();
+                    $transaction->load('kitchenOrder');
+                    $activePayment->refresh();
+                }
             }
         }
 
         if (!$transaction) {
             return [
-                'session_status'  => $session->status,
-                'order_status'    => null,
-                'kitchen_status'  => null,
-                'message'         => 'Menunggu pembayaran...',
+                'session_status'   => $session->status,
+                'order_status'     => null,
+                'kitchen_status'   => null,
+                'payment_checking' => false,
+                'message'          => 'Menunggu pesanan disubmit...',
             ];
         }
 
+        // Determine effective status for message
+        $effectiveStatus = $transaction->status;
+        if ($transaction->status === 'paid' && $transaction->kitchenOrder) {
+            if ($transaction->kitchenOrder->status === 'cooking') {
+                $effectiveStatus = 'preparing';
+            } elseif ($transaction->kitchenOrder->status === 'ready') {
+                $effectiveStatus = 'ready';
+            }
+        }
+
         return [
-            'session_status'  => $session->status,
-            'order_status'    => $transaction->status,
-            'kitchen_status'  => $transaction->kitchenOrder?->status,
-            'invoice_number'  => $transaction->invoice_number,
-            'grand_total'     => $transaction->grand_total,
-            'message'         => $this->statusMessage($transaction->status),
+            'session_status'     => $session->status,
+            'order_status'       => $transaction->status,
+            'kitchen_status'     => $transaction->kitchenOrder?->status,
+            'invoice_number'     => $transaction->invoice_number,
+            'gateway_invoice_id' => $activePayment?->invoice_id,
+            'grand_total'        => $transaction->grand_total,
+            'final_amount'       => $activePayment?->final_amount ?? (int) $transaction->grand_total,
+            'payment_url'        => $activePayment?->payment_url,
+            'payment_checking'   => $paymentChecking,
+            'message'            => $this->statusMessage($effectiveStatus),
+            'items'              => $transaction->items()->with('product:id,name,image')->get()->map(function($item) {
+                return [
+                    'id'            => $item->id,
+                    'product_name'  => $item->product?->name ?? $item->product_name,
+                    'image'         => $item->product?->image ? Storage::disk('public')->url($item->product->image) : null,
+                    'quantity'      => $item->quantity,
+                    'price'         => $item->price,
+                ];
+            }),
         ];
     }
 
@@ -366,18 +466,22 @@ class SelfOrderService
     private function confirmPayment(Transaction $transaction, PaymentTransaction $paymentTx): void
     {
         DB::transaction(function () use ($transaction, $paymentTx) {
-            // Update transaction status
+            // Find active shift for this outlet
+            $activeShift = $this->shiftService->getCurrentShift($transaction->outlet_id);
+
+            // Update transaction status and link to shift
             $transaction->update([
                 'status'      => 'paid',
-                'paid_amount' => $paymentTx->final_amount,
+                'paid_amount' => $transaction->grand_total,
+                'shift_id'    => $activeShift?->id,
             ]);
 
             // Create Payment record
             Payment::create([
                 'tenant_id'        => $transaction->tenant_id,
                 'transaction_id'   => $transaction->id,
-                'payment_method'   => 'qris',
-                'amount'           => $paymentTx->final_amount,
+                'payment_method'   => 'e-wallet',
+                'amount'           => $transaction->grand_total,
                 'payment_reference' => $paymentTx->invoice_id,
                 'paid_at'          => now(),
             ]);
@@ -499,5 +603,54 @@ class SelfOrderService
                 'plan' => 'Fitur QR Self Order tidak tersedia pada paket ini. Silakan upgrade.',
             ]);
         }
+    }
+
+    /**
+     * Convert static QRIS to Dynamic QRIS by embedding amount and recalculating CRC.
+     */
+    private function generateDynamicQris(string $staticQris, $amount): string
+    {
+        // 1. Remove last 4 chars (CRC)
+        $qris = substr(trim($staticQris), 0, -4);
+
+        // 2. Change static indicator (010211) to dynamic (010212)
+        $qris = str_replace("010211", "010212", $qris);
+
+        // 3. Prepare amount tag (54)
+        $amountStr = (string)$amount;
+        $amountTag = "54" . sprintf("%02d", strlen($amountStr)) . $amountStr;
+
+        // 4. Insert amount before country code (5802ID)
+        if (strpos($qris, "5802ID") !== false) {
+            $parts = explode("5802ID", $qris);
+            $qris = $parts[0] . $amountTag . "5802ID" . $parts[1];
+        } else {
+            // Fallback: append if tag not found
+            $qris .= $amountTag;
+        }
+
+        // 5. Append new CRC
+        return $qris . $this->crc16($qris);
+    }
+
+    /**
+     * CCITT-FALSE CRC16 implementation
+     */
+    private function crc16(string $str): string
+    {
+        $crc = 0xFFFF;
+        $strlen = strlen($str);
+        for ($c = 0; $c < $strlen; $c++) {
+            $crc ^= ord($str[$c]) << 8;
+            for ($i = 0; $i < 8; $i++) {
+                if ($crc & 0x8000) {
+                    $crc = ($crc << 1) ^ 0x1021;
+                } else {
+                    $crc = $crc << 1;
+                }
+            }
+        }
+        $hex = strtoupper(dechex($crc & 0xFFFF));
+        return str_pad($hex, 4, "0", STR_PAD_LEFT);
     }
 }
