@@ -333,6 +333,29 @@ class TransactionService
                 ]);
             }
 
+            // Detect cash payments to record in CashDrawerLog if this is a refund
+            $cashRefundAmount = $transaction->payments()->where('payment_method', 'cash')->sum('amount');
+            if ($cashRefundAmount > 0) {
+                $shiftId = $transaction->shift_id;
+                $shift = Shift::find($shiftId);
+                
+                // If the transaction's shift is closed or missing, try to get current open shift
+                if (!$shift || !$shift->isOpen()) {
+                    $shift = Shift::where('outlet_id', $transaction->outlet_id)
+                        ->where('status', 'open')
+                        ->first();
+                }
+
+                if ($shift && $shift->isOpen()) {
+                    $cashDrawerLogService = app(\App\Services\ShiftService::class);
+                    $cashDrawerLogService->addCashDrawerLog($shift, [
+                        'type'   => 'out',
+                        'amount' => $cashRefundAmount,
+                        'reason' => "Pembatalan Transaksi #{$transaction->invoice_number} (Refund Tunai)"
+                    ]);
+                }
+            }
+
             // 1. Update transaction status and metadata
             $transaction->update([
                 'status'        => 'cancelled',

@@ -85,7 +85,13 @@ class ShiftController extends Controller
 
     public function show(string $id): JsonResponse
     {
-        $shift = Shift::with(['openedBy', 'closedBy', 'cashDrawerLogs.user', 'transactions'])->findOrFail($id);
+        $shift = Shift::with([
+            'openedBy', 
+            'closedBy', 
+            'cashDrawerLogs.user', 
+            'cashDrawerLogs.expense.category',
+            'transactions'
+        ])->findOrFail($id);
 
         return response()->json(['success' => true, 'data' => $shift]);
     }

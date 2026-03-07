@@ -31,4 +31,9 @@ class CashDrawerLog extends Model
     {
         return $this->belongsTo(User::class);
     }
+
+    public function expense(): BelongsTo
+    {
+        return $this->belongsTo(Expense::class);
+    }
 }

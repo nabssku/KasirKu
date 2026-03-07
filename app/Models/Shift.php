@@ -103,6 +103,8 @@ class Shift extends Model
         $netSales = $grossSales - $refundTotal;
         $cashSalesNet = $paymentBreakdown['cash'] ?? 0;
         
+        // expectedCash = Opening + Net Cash Sales + Manual Cash In - (Manual Cash Out + Expenses + Refunds)
+        // Note: cashOut log handled by ShiftService/ExpenseService should include all physical cash withdrawals (including refunds)
         $expectedCash = (float) $this->opening_cash + $cashSalesNet + $cashIn - $cashOut;
         $difference = $this->closing_cash !== null ? (float) $this->closing_cash - $expectedCash : 0;
 
