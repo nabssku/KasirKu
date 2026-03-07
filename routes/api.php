@@ -31,6 +31,7 @@ use Illuminate\Support\Facades\Route;
 */
 
 Route::prefix('v1')->group(function () {
+    Route::get('/app-version/latest', [\App\Http\Controllers\Api\V1\AppVersionController::class, 'latest']);
 
     // ─── Public Auth Routes ───────────────────────────────────────────────────
     Route::post('/auth/register', [AuthController::class, 'register']);
@@ -77,6 +78,11 @@ Route::prefix('v1')->group(function () {
 
         // ── bayar.gg Payment Statistics ───────────────────────────────────────
         Route::get('/payment-statistics',       [SuperAdminController::class, 'paymentStatistics']);
+
+        // ── App Version Management ────────────────────────────────────────────
+        Route::get('/app-versions',             [\App\Http\Controllers\Api\V1\AppVersionController::class, 'index']);
+        Route::post('/app-versions',            [\App\Http\Controllers\Api\V1\AppVersionController::class, 'store']);
+        Route::delete('/app-versions/{id}',     [\App\Http\Controllers\Api\V1\AppVersionController::class, 'destroy']);
     });
 
     // ─── Shared Auth Routes (works for all authenticated users incl. super_admin) ─
@@ -252,6 +258,13 @@ Route::prefix('v1')->group(function () {
             Route::get('/by-staff',     [ReportController::class, 'byStaff']);
             Route::get('/by-outlet',    [ReportController::class, 'byOutlet']);
             Route::get('/dead-stock',   [ReportController::class, 'deadStock']);
+            Route::get('/income',       [ReportController::class, 'income']);
+            Route::get('/expense',      [ReportController::class, 'expense']);
+            Route::get('/profit-loss',  [ReportController::class, 'profitLossSummary']);
+            
+            Route::get('/income/export',      [ReportController::class, 'exportIncome']);
+            Route::get('/expense/export',     [ReportController::class, 'exportExpense']);
+            Route::get('/profit-loss/export', [ReportController::class, 'exportProfitLoss']);
         });
 
         // ── AI Assistant ──────────────────────────────────────────────────────

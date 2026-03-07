@@ -130,9 +130,10 @@ class ExpenseService
                 if ($shift && $shift->isOpen()) {
                     $expense->update(['shift_id' => $shift->id]);
                     $this->shiftService->addCashDrawerLog($shift, [
-                        'type'   => 'out',
-                        'amount' => $data['amount'],
-                        'reason' => "Expense [{$expense->type}]: " . ($expense->category->name ?? 'General') . " - " . ($data['notes'] ?? ''),
+                        'type'       => 'out',
+                        'amount'     => $data['amount'],
+                        'expense_id' => $expense->id,
+                        'reason'     => "Expense [{$expense->type}]: " . ($expense->category->name ?? 'General') . " - " . ($data['notes'] ?? ''),
                     ]);
                 }
             }

@@ -10,8 +10,17 @@ class AuthService
 {
     public function login(array $credentials): ?array
     {
+        $remember = $credentials['remember_me'] ?? false;
+        unset($credentials['remember_me']);
+
         // For JWT auth with tymon/jwt-auth
         $credentials['is_active'] = true;
+
+        if ($remember) {
+            // Set TTL to 2 weeks (60 * 24 * 14)
+            auth('api')->setTTL(20160);
+        }
+
         $token = auth('api')->attempt($credentials);
 
         if (!$token) {
@@ -28,7 +37,11 @@ class AuthService
 
     public function refresh(): array
     {
-        return $this->respondWithToken(auth('api')->refresh());
+        try {
+            return $this->respondWithToken(auth('api')->refresh());
+        } catch (\PHPOpenSourceSaver\JWTAuth\Exceptions\JWTException $e) {
+            throw new \Symfony\Component\HttpKernel\Exception\UnauthorizedHttpException('jwt-auth', $e->getMessage(), $e);
+        }
     }
 
     protected function respondWithToken($token): array

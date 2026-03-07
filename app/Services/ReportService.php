@@ -216,4 +216,130 @@ class ReportService
             'ingredients'       => $deadIngredients,
         ];
     }
+
+    public function getIncomeReport(string $startDate, string $endDate, ?string $outletId = null): array
+    {
+        $transactions = Transaction::with(['items'])
+            ->where('status', 'completed')
+            ->whereBetween('created_at', [$startDate . ' 00:00:00', $endDate . ' 23:59:59'])
+            ->when($outletId, fn($q) => $q->where('outlet_id', $outletId))
+            ->get();
+
+        $grouped = $transactions->groupBy(function ($item) {
+            return $item->created_at->format('Y-m-d');
+        });
+
+        $reportData = [];
+        foreach ($grouped as $date => $items) {
+            $totalRevenue = (float) $items->sum('grand_total');
+            
+            // Get descriptions (e.g., "2 Coto, 1 Teh")
+            $productCounts = [];
+            foreach ($items as $transaction) {
+                foreach ($transaction->items as $item) {
+                    $name = $item->product_name;
+                    $productCounts[$name] = ($productCounts[$name] ?? 0) + $item->quantity;
+                }
+            }
+            
+            $descriptions = [];
+            foreach ($productCounts as $name => $qty) {
+                $descriptions[] = "{$qty} {$name}";
+            }
+            
+            $reportData[] = [
+                'date' => $date,
+                'total_revenue' => $totalRevenue,
+                'description' => implode(', ', $descriptions)
+            ];
+        }
+
+        // Sort by date ascending
+        usort($reportData, fn($a, $b) => strcmp($a['date'], $b['date']));
+
+        return [
+            'data' => $reportData,
+            'total_overall' => (float) array_sum(array_column($reportData, 'total_revenue')),
+        ];
+    }
+
+    public function getExpenseReport(string $startDate, string $endDate, ?string $outletId = null): array
+    {
+        $expenses = \App\Models\Expense::with(['category', 'shift'])
+            ->whereBetween('date', [$startDate, $endDate])
+            ->when($outletId, fn($q) => $q->where('outlet_id', $outletId))
+            ->get();
+
+        $reportData = [];
+        foreach ($expenses as $expense) {
+            $reportData[] = [
+                'category_name' => $expense->category->name ?? 'Uncategorized',
+                'source' => $expense->shift_id ? 'Shift' : 'Admin',
+                'notes' => $expense->notes ?: '-',
+                'date' => $expense->created_at->toDateTimeString(),
+                'shift_opened_at' => $expense->shift ? $expense->shift->opened_at->toDateTimeString() : null,
+                'total_amount' => (float) $expense->amount,
+            ];
+        }
+
+        // Include manual cash drawer logs (Cash Out) individually to show reasons
+        $manualLogs = \App\Models\CashDrawerLog::with(['shift'])->where('type', 'out')
+            ->whereNull('expense_id')
+            ->whereBetween('created_at', [$startDate . ' 00:00:00', $endDate . ' 23:59:59'])
+            ->when($outletId, function($q) use ($outletId) {
+                return $q->whereHas('shift', fn($sq) => $sq->where('outlet_id', $outletId));
+            })
+            ->get();
+
+        foreach ($manualLogs as $log) {
+            $reportData[] = [
+                'category_name' => 'Kas Keluar Manual',
+                'source' => 'Shift',
+                'notes' => $log->reason ?? '-',
+                'date' => $log->created_at->toDateTimeString(),
+                'shift_opened_at' => $log->shift ? $log->shift->opened_at->toDateTimeString() : null,
+                'total_amount' => (float) $log->amount,
+            ];
+        }
+
+        // Sort by date descending
+        usort($reportData, function($a, $b) {
+            return strcmp($b['date'], $a['date']);
+        });
+
+        return [
+            'data' => $reportData,
+            'total_overall' => (float) array_sum(array_column($reportData, 'total_amount')),
+        ];
+    }
+
+    public function getProfitLossSummary(string $startDate, string $endDate, ?string $outletId = null): array
+    {
+        $totalRevenue = (float) Transaction::where('status', 'completed')
+            ->whereBetween('created_at', [$startDate . ' 00:00:00', $endDate . ' 23:59:59'])
+            ->when($outletId, fn($q) => $q->where('outlet_id', $outletId))
+            ->sum('grand_total');
+
+        $totalExpense = (float) \App\Models\Expense::whereBetween('date', [$startDate, $endDate])
+            ->when($outletId, fn($q) => $q->where('outlet_id', $outletId))
+            ->sum('amount');
+
+        // Add manual cash out logs
+        $manualCashOut = (float) \App\Models\CashDrawerLog::where('type', 'out')
+            ->whereNull('expense_id')
+            ->whereBetween('created_at', [$startDate . ' 00:00:00', $endDate . ' 23:59:59'])
+            ->when($outletId, function($q) use ($outletId) {
+                return $q->whereHas('shift', fn($sq) => $sq->where('outlet_id', $outletId));
+            })
+            ->sum('amount');
+
+        $totalExpense += $manualCashOut;
+
+        return [
+            'total_revenue' => $totalRevenue,
+            'total_expenses' => $totalExpense,
+            'net_profit' => $totalRevenue - $totalExpense,
+            'status' => ($totalRevenue - $totalExpense) >= 0 ? 'profit' : 'loss'
+        ];
+    }
 }

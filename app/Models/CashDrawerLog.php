@@ -14,6 +14,7 @@ class CashDrawerLog extends Model
     protected $fillable = [
         'shift_id',
         'user_id',
+        'expense_id',
         'type',
         'amount',
         'reason',

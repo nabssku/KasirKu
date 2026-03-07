@@ -91,11 +91,12 @@ class ShiftService
         }
 
         return CashDrawerLog::create([
-            'shift_id' => $shift->id,
-            'user_id'  => auth()->id(),
-            'type'     => $data['type'],
-            'amount'   => $data['amount'],
-            'reason'   => $data['reason'] ?? null,
+            'shift_id'   => $shift->id,
+            'user_id'    => auth()->id(),
+            'expense_id' => $data['expense_id'] ?? null,
+            'type'       => $data['type'],
+            'amount'     => $data['amount'],
+            'reason'     => $data['reason'] ?? null,
         ]);
     }
 }
