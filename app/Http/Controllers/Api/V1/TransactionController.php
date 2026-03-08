@@ -32,7 +32,13 @@ class TransactionController extends Controller
         }
 
         if ($request->has('date')) {
-            $query->whereDate('created_at', $request->date);
+            // Because the database is in UTC and user is in Asia/Jakarta,
+            // we must convert the requested local date into a UTC range.
+            $timezone = 'Asia/Jakarta';
+            $startOfDay = \Carbon\Carbon::parse($request->date, $timezone)->startOfDay()->timezone('UTC');
+            $endOfDay = \Carbon\Carbon::parse($request->date, $timezone)->endOfDay()->timezone('UTC');
+            
+            $query->whereBetween('created_at', [$startOfDay, $endOfDay]);
         }
 
         $transactions = $query->orderBy('created_at', 'desc')
