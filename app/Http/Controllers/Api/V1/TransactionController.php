@@ -173,7 +173,7 @@ class TransactionController extends Controller
             'grand_total'    => (float) $transaction->grand_total,
             'paid_amount'    => (float) $transaction->paid_amount,
             'change_amount'  => (float) $transaction->change_amount,
-            'payment_method' => $transaction->payments->first()?->method ?? 'cash',
+            'payment_method' => $transaction->payments->first()?->payment_method ?? 'cash',
             'status'         => $transaction->status,
             'notes'          => $transaction->notes,
             'receipt_settings' => $outlet?->receipt_settings,
