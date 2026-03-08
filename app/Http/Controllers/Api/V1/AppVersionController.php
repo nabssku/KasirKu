@@ -51,16 +51,29 @@ class AppVersionController extends Controller
 
     public function store(Request $request)
     {
+        \Illuminate\Support\Facades\Log::info('App version upload attempt', [
+            'version_name' => $request->version_name,
+            'version_code' => $request->version_code,
+            'has_file' => $request->hasFile('apk_file'),
+        ]);
+
         $request->validate([
             'version_name' => 'required|string',
             'version_code' => 'required|integer|unique:app_versions,version_code',
-            'apk_file' => 'required|file|mimes:zip,apk,bin', // Bin for generic, apk might need extra config in some PHP setups
+            'apk_file' => 'required|file', // Removed strict mimes as it often fails for APKs
             'release_notes' => 'nullable|string',
             'is_critical' => 'boolean',
         ]);
 
         if ($request->hasFile('apk_file')) {
             $file = $request->file('apk_file');
+            
+            \Illuminate\Support\Facades\Log::info('Processing APK upload', [
+                'original_name' => $file->getClientOriginalName(),
+                'mime_type' => $file->getMimeType(),
+                'size' => $file->getSize(),
+            ]);
+
             $fileName = 'jagokasir-v' . $request->version_name . '.' . $file->getClientOriginalExtension();
             $path = $file->storeAs('updates', $fileName, 'public');
 
@@ -72,12 +85,16 @@ class AppVersionController extends Controller
                 'is_critical' => $request->boolean('is_critical'),
             ]);
 
+            \Illuminate\Support\Facades\Log::info('App version created successfully', ['id' => $version->id]);
+
             return response()->json([
                 'success' => true,
                 'message' => 'Version uploaded successfully',
                 'data' => $version
             ]);
         }
+
+        \Illuminate\Support\Facades\Log::error('App version upload failed: File missing');
 
         return response()->json([
             'success' => false,
