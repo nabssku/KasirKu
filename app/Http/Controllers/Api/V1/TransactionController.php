@@ -31,6 +31,10 @@ class TransactionController extends Controller
             $query->where('status', $request->status);
         }
 
+        if ($request->has('date')) {
+            $query->whereDate('created_at', $request->date);
+        }
+
         $transactions = $query->orderBy('created_at', 'desc')
             ->paginate($perPage);
 
