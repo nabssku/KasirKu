@@ -19,7 +19,7 @@ class ReportController extends Controller
     public function daily(Request $request): JsonResponse
     {
         $date     = $request->query('date', now()->format('Y-m-d'));
-        $outletId = $request->query('outlet_id');
+        $outletId = $this->resolveOutletId($request);
         $data     = $this->reportService->getDailySales($date, $outletId);
 
         return response()->json(['success' => true, 'data' => $data]);
@@ -29,7 +29,7 @@ class ReportController extends Controller
     {
         $year     = $request->query('year', now()->year);
         $month    = $request->query('month', now()->month);
-        $outletId = $request->query('outlet_id');
+        $outletId = $this->resolveOutletId($request);
         $data     = $this->reportService->getMonthlyRevenue($year, $month, $outletId);
 
         return response()->json(['success' => true, 'data' => $data]);
@@ -38,7 +38,7 @@ class ReportController extends Controller
     public function topProducts(Request $request): JsonResponse
     {
         $limit    = (int) $request->query('limit', 10);
-        $outletId = $request->query('outlet_id');
+        $outletId = $this->resolveOutletId($request);
         $data     = $this->reportService->getTopSellingProducts($limit, $outletId);
 
         return response()->json(['success' => true, 'data' => $data]);
@@ -48,7 +48,7 @@ class ReportController extends Controller
     {
         $startDate = $request->query('start_date', now()->subDays(30)->format('Y-m-d'));
         $endDate   = $request->query('end_date',   now()->format('Y-m-d'));
-        $outletId  = $request->query('outlet_id');
+        $outletId  = $this->resolveOutletId($request);
 
         $csv      = $this->reportService->exportTransactionsToCsv($startDate, $endDate, $outletId);
         $filename = "transactions-{$startDate}-to-{$endDate}.csv";
@@ -63,7 +63,7 @@ class ReportController extends Controller
     {
         $startDate = $request->query('start_date', now()->startOfMonth()->format('Y-m-d'));
         $endDate   = $request->query('end_date',   now()->format('Y-m-d'));
-        $outletId  = $request->query('outlet_id');
+        $outletId  = $this->resolveOutletId($request);
 
         $data = $this->reportService->getProfitReport($startDate, $endDate, $outletId);
 
@@ -74,7 +74,7 @@ class ReportController extends Controller
     {
         $startDate = $request->query('start_date', now()->startOfMonth()->format('Y-m-d'));
         $endDate   = $request->query('end_date',   now()->format('Y-m-d'));
-        $outletId  = $request->query('outlet_id');
+        $outletId  = $this->resolveOutletId($request);
 
         $data = $this->reportService->getSalesByStaff($startDate, $endDate, $outletId);
 
@@ -85,7 +85,7 @@ class ReportController extends Controller
     {
         $startDate = $request->query('start_date', now()->startOfMonth()->format('Y-m-d'));
         $endDate   = $request->query('end_date',   now()->format('Y-m-d'));
-        $outletId  = $request->query('outlet_id');
+        $outletId  = $this->resolveOutletId($request);
 
         $data = $this->reportService->getSalesByOutlet($startDate, $endDate, $outletId);
 
@@ -94,7 +94,7 @@ class ReportController extends Controller
 
     public function deadStock(Request $request): JsonResponse
     {
-        $outletId = $request->query('outlet_id');
+        $outletId = $this->resolveOutletId($request);
         $data     = $this->reportService->getDeadStockReport($outletId);
 
         return response()->json(['success' => true, 'data' => $data]);
@@ -104,7 +104,7 @@ class ReportController extends Controller
     {
         $startDate = $request->query('start_date', now()->startOfMonth()->format('Y-m-d'));
         $endDate   = $request->query('end_date', now()->format('Y-m-d'));
-        $outletId  = $request->query('outlet_id');
+        $outletId  = $this->resolveOutletId($request);
 
         $data = $this->reportService->getIncomeReport($startDate, $endDate, $outletId);
 
@@ -115,7 +115,7 @@ class ReportController extends Controller
     {
         $startDate = $request->query('start_date', now()->startOfMonth()->format('Y-m-d'));
         $endDate   = $request->query('end_date', now()->format('Y-m-d'));
-        $outletId  = $request->query('outlet_id');
+        $outletId  = $this->resolveOutletId($request);
 
         $data = $this->reportService->getExpenseReport($startDate, $endDate, $outletId);
 
@@ -126,7 +126,7 @@ class ReportController extends Controller
     {
         $startDate = $request->query('start_date', now()->startOfMonth()->format('Y-m-d'));
         $endDate   = $request->query('end_date', now()->format('Y-m-d'));
-        $outletId  = $request->query('outlet_id');
+        $outletId  = $this->resolveOutletId($request);
 
         $data = $this->reportService->getProfitLossSummary($startDate, $endDate, $outletId);
 
@@ -137,7 +137,7 @@ class ReportController extends Controller
     {
         $startDate = $request->query('start_date', now()->startOfMonth()->format('Y-m-d'));
         $endDate   = $request->query('end_date', now()->format('Y-m-d'));
-        $outletId  = $request->query('outlet_id');
+        $outletId  = $this->resolveOutletId($request);
         $format    = $request->query('format', 'pdf');
 
         $data = $this->reportService->getIncomeReport($startDate, $endDate, $outletId);
@@ -173,7 +173,7 @@ class ReportController extends Controller
     {
         $startDate = $request->query('start_date', now()->startOfMonth()->format('Y-m-d'));
         $endDate   = $request->query('end_date', now()->format('Y-m-d'));
-        $outletId  = $request->query('outlet_id');
+        $outletId  = $this->resolveOutletId($request);
         $format    = $request->query('format', 'pdf');
 
         $data = $this->reportService->getExpenseReport($startDate, $endDate, $outletId);
@@ -205,7 +205,7 @@ class ReportController extends Controller
     {
         $startDate = $request->query('start_date', now()->startOfMonth()->format('Y-m-d'));
         $endDate   = $request->query('end_date', now()->format('Y-m-d'));
-        $outletId  = $request->query('outlet_id');
+        $outletId  = $this->resolveOutletId($request);
         
         $data = $this->reportService->getProfitLossSummary($startDate, $endDate, $outletId);
         $data['start_date'] = $startDate;
@@ -213,5 +213,17 @@ class ReportController extends Controller
 
         $pdf = Pdf::loadView('reports.profit_loss', $data);
         return $pdf->download("profit-loss-report-{$startDate}-to-{$endDate}.pdf");
+    }
+
+    private function resolveOutletId(Request $request): ?string
+    {
+        $user = auth()->user();
+        $requestedId = $request->query('outlet_id');
+        
+        if ($user && $user->hasAnyRole(['owner', 'super_admin', 'admin'])) {
+            return $requestedId;
+        }
+        
+        return $user ? $user->outlet_id : $requestedId;
     }
 }
