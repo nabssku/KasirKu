@@ -21,7 +21,7 @@ class TransactionController extends Controller
         $perPage = (int) $request->query('per_page', 15);
         $user    = auth()->user();
 
-        $query = Transaction::with(['items', 'customer', 'user', 'payments', 'table']);
+        $query = Transaction::with(['items.modifiers', 'customer', 'user', 'payments', 'table']);
 
         if ($request->has('outlet_id')) {
             $query->where('outlet_id', $request->outlet_id);
@@ -63,6 +63,10 @@ class TransactionController extends Controller
             'items.*.product_id' => ['required', 'uuid', 'exists:products,id'],
             'items.*.quantity'   => ['required', 'integer', 'min:1'],
             'items.*.price'      => ['required', 'numeric', 'min:0'],
+            'items.*.modifiers'  => ['nullable', 'array'],
+            'items.*.modifiers.*.modifier_id' => ['required', 'uuid', 'exists:modifiers,id'],
+            'items.*.modifiers.*.name'        => ['required', 'string'],
+            'items.*.modifiers.*.price'       => ['required', 'numeric', 'min:0'],
             'customer_id'        => ['nullable', 'uuid', 'exists:customers,id'],
             'table_id'           => ['nullable', 'uuid', 'exists:restaurant_tables,id'],
             'shift_id'           => ['nullable', 'uuid', 'exists:shifts,id'],
@@ -84,13 +88,13 @@ class TransactionController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Transaction completed successfully.',
-            'data'    => new TransactionResource($transaction->load(['items', 'customer', 'payments', 'outlet'])),
+            'data'    => new TransactionResource($transaction->load(['items.modifiers', 'customer', 'payments', 'outlet'])),
         ], 201);
     }
 
     public function show(string $id): JsonResponse
     {
-        $transaction = Transaction::with(['items', 'customer', 'user', 'payments'])->findOrFail($id);
+        $transaction = Transaction::with(['items.modifiers', 'customer', 'user', 'payments'])->findOrFail($id);
 
         $this->authorize('view', $transaction);
 
@@ -106,6 +110,10 @@ class TransactionController extends Controller
             'items.*.product_id'   => ['required', 'uuid', 'exists:products,id'],
             'items.*.quantity'     => ['required', 'integer', 'min:1'],
             'items.*.price'        => ['required', 'numeric', 'min:0'],
+            'items.*.modifiers'    => ['nullable', 'array'],
+            'items.*.modifiers.*.modifier_id' => ['required', 'uuid', 'exists:modifiers,id'],
+            'items.*.modifiers.*.name'        => ['required', 'string'],
+            'items.*.modifiers.*.price'       => ['required', 'numeric', 'min:0'],
             'customer_id'          => ['nullable', 'uuid', 'exists:customers,id'],
             'table_id'             => ['nullable', 'uuid', 'exists:restaurant_tables,id'],
             'shift_id'             => ['nullable', 'uuid', 'exists:shifts,id'],
@@ -127,7 +135,7 @@ class TransactionController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Transaction updated successfully.',
-            'data'    => new TransactionResource($transaction->load(['items', 'customer', 'payments', 'outlet'])),
+            'data'    => new TransactionResource($transaction->load(['items.modifiers', 'customer', 'payments', 'outlet'])),
         ]);
     }
 
@@ -150,7 +158,7 @@ class TransactionController extends Controller
      */
     public function receipt(string $id): JsonResponse
     {
-        $transaction = Transaction::with(['items', 'customer', 'user', 'outlet', 'table'])->findOrFail($id);
+        $transaction = Transaction::with(['items.modifiers', 'customer', 'user', 'outlet', 'table'])->findOrFail($id);
 
         $outlet = $transaction->outlet;
 
@@ -166,10 +174,14 @@ class TransactionController extends Controller
             'table_id'       => $transaction->table_id,
             'table_name'     => $transaction->table?->name,
             'items'          => $transaction->items->map(fn($item) => [
-                'name'     => $item->product_name,
-                'quantity' => $item->quantity,
-                'price'    => (float) $item->price,
-                'subtotal' => (float) $item->subtotal,
+                'name'      => $item->product_name,
+                'quantity'  => $item->quantity,
+                'price'     => (float) $item->price,
+                'subtotal'  => (float) $item->subtotal,
+                'modifiers' => $item->modifiers->map(fn($m) => [
+                    'name' => $m->modifier_name,
+                    'price' => (float) $m->price,
+                ])->values()->all(),
             ]),
             'subtotal'       => (float) $transaction->subtotal,
             'discount'       => (float) $transaction->discount,

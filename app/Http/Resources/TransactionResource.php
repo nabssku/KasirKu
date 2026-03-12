@@ -49,6 +49,10 @@ class TransactionResource extends JsonResource
                 'quantity'     => $item->quantity,
                 'price'        => (float) $item->price,
                 'subtotal'     => (float) $item->subtotal,
+                'modifiers'    => $item->modifiers->map(fn($m) => [
+                    'name' => $m->modifier_name,
+                    'price' => (float) $m->price,
+                ])->values()->all(),
             ])),
             'receipt_settings' => $this->whenLoaded('outlet', fn() => $this->outlet?->receipt_settings),
             'created_at'     => $this->created_at?->toISOString(),
