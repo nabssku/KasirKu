@@ -595,13 +595,19 @@ class SelfOrderService
 
     private function generateInvoiceNumber(string $outletId): string
     {
-        $prefix = 'SO-' . now()->format('ymd');
-        $count  = Transaction::where('outlet_id', $outletId)
+        // Use withTrashed() so we don't reuse numbers after deletion
+        // Including His (Hour, Minute, Second) to ensure uniqueness if retried after rollback
+        $prefix = 'SO-' . now()->format('ymdHis');
+        $count  = Transaction::withTrashed()
+            ->where('outlet_id', $outletId)
             ->where('source', 'self_order')
             ->whereDate('created_at', today())
             ->count();
 
-        return $prefix . '-' . str_pad($count + 1, 4, '0', STR_PAD_LEFT);
+        // Add a suffix from outlet ID to prevent collisions between outlets of the same tenant in Pakasir
+        $outletSuffix = substr($outletId, 0, 4);
+
+        return $prefix . '-' . $outletSuffix . '-' . str_pad($count + 1, 4, '0', STR_PAD_LEFT);
     }
 
     private function mapGatewayStatus(string $gatewayStatus): string
