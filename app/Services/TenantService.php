@@ -11,6 +11,13 @@ use Illuminate\Support\Facades\Hash;
 
 class TenantService
 {
+    protected $subscriptionService;
+
+    public function __construct(SubscriptionService $subscriptionService)
+    {
+        $this->subscriptionService = $subscriptionService;
+    }
+
     public function register(RegisterTenantDTO $dto): array
     {
         return DB::transaction(function () use ($dto) {
@@ -20,8 +27,10 @@ class TenantService
                 'email' => $dto->email,
                 'domain' => $dto->domain,
                 'status' => 'active',
-                'trial_ends_at' => now()->addDays(14),
             ]);
+
+            // Start Trial Subscription
+            $this->subscriptionService->startTrial($tenant);
 
             // 2. Create Owner Role if not exists
             $ownerRole = Role::firstOrCreate(

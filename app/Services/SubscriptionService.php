@@ -29,17 +29,40 @@ class SubscriptionService
 
     public function startTrial(Tenant $tenant, ?int $planId = null): Subscription
     {
-        $plan      = $planId ? Plan::findOrFail($planId) : Plan::where('slug', 'starter')->first();
-        $trialDays = $plan?->trial_days ?? 14;
+        if (!$planId) {
+            $planId = SystemSetting::get('trial_plan_id');
+            // Fallback to starter if no setting
+            if (!$planId) {
+                $planId = Plan::where('slug', 'starter')->value('id');
+            }
+        }
 
-        return Subscription::create([
+        $plan      = $planId ? Plan::find($planId) : null;
+        $trialDays = $plan?->trial_days ?? 14;
+        $endsAt    = Carbon::now()->addDays($trialDays)->endOfDay();
+
+        $subscription = Subscription::create([
             'tenant_id'     => $tenant->id,
             'plan_id'       => $plan?->id,
             'status'        => 'trial',
-            'trial_ends_at' => Carbon::now()->addDays($trialDays),
+            'trial_ends_at' => $endsAt,
             'starts_at'     => Carbon::now(),
-            'ends_at'       => Carbon::now()->addDays($trialDays),
+            'ends_at'       => $endsAt,
         ]);
+
+        // Also sync tenant fields for convenience
+        $tenant->update([
+            'status' => 'active',
+            'trial_ends_at' => $endsAt,
+        ]);
+
+        Log::info('Trial subscription started', [
+            'tenant_id' => $tenant->id,
+            'plan_id' => $plan?->id,
+            'expires_at' => $endsAt
+        ]);
+
+        return $subscription;
     }
 
     public function isActive(Tenant $tenant): bool

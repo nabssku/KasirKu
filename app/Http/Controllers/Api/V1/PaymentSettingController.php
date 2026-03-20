@@ -29,6 +29,7 @@ class PaymentSettingController extends Controller
                     'api_key'    => '',
                     'is_sandbox' => true,
                 ]),
+                'trial_plan_id'        => SystemSetting::get('trial_plan_id', null),
             ],
         ]);
     }
@@ -42,6 +43,7 @@ class PaymentSettingController extends Controller
             'subscription_gateway' => 'required|string|in:midtrans,pakasir',
             'midtrans_config'      => 'nullable|array',
             'pakasir_config'       => 'nullable|array',
+            'trial_plan_id'        => 'nullable|integer|exists:plans,id',
         ]);
 
         SystemSetting::set('subscription_gateway', $validated['subscription_gateway']);
@@ -52,6 +54,10 @@ class PaymentSettingController extends Controller
         
         if (isset($validated['pakasir_config'])) {
             SystemSetting::set('pakasir_config', $validated['pakasir_config']);
+        }
+
+        if (array_key_exists('trial_plan_id', $validated)) {
+            SystemSetting::set('trial_plan_id', $validated['trial_plan_id']);
         }
 
         return response()->json(['success' => true, 'message' => 'Global payment settings updated']);
