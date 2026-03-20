@@ -22,6 +22,8 @@ use App\Http\Controllers\Api\V1\AuditLogController;
 use App\Http\Controllers\Api\V1\AiController;
 use App\Http\Controllers\Api\V1\SelfOrderController;
 use App\Http\Controllers\Api\V1\TableQrController;
+use App\Http\Controllers\Api\V1\PaymentSettingController;
+use App\Http\Controllers\Api\V1\WebhookController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -38,8 +40,10 @@ Route::prefix('v1')->group(function () {
     Route::post('/auth/login',    [AuthController::class, 'login']);
     Route::post('/auth/refresh',  [AuthController::class, 'refresh']);
 
-    // ─── bayar.gg Webhook (no JWT, verify by HMAC signature) ──────────────────
-    Route::post('/subscriptions/webhook', [SubscriptionController::class, 'webhook']);
+    // ─── Payment Webhooks ────────────────────────────────────────────────────
+    Route::post('/webhooks/midtrans', [WebhookController::class, 'midtrans']);
+    Route::post('/webhooks/pakasir',  [WebhookController::class, 'pakasir']);
+
 
     // ─── QR Self Order Public API (rate limited, no auth) ────────────────────
     Route::prefix('public')->middleware('throttle:30,1')->group(function () {
@@ -78,6 +82,10 @@ Route::prefix('v1')->group(function () {
 
         // ── bayar.gg Payment Statistics ───────────────────────────────────────
         Route::get('/payment-statistics',       [SuperAdminController::class, 'paymentStatistics']);
+
+        // ── Payment Settings ──────────────────────────────────────────────────
+        Route::get('/payment-settings',         [PaymentSettingController::class, 'getGlobalSettings']);
+        Route::put('/payment-settings',         [PaymentSettingController::class, 'updateGlobalSettings']);
 
         // ── App Version Management ────────────────────────────────────────────
         Route::get('/app-versions',             [\App\Http\Controllers\Api\V1\AppVersionController::class, 'index']);
@@ -288,6 +296,12 @@ Route::prefix('v1')->group(function () {
 
         Route::middleware(['role:super_admin,owner,admin', 'feature:audit_log'])->group(function () {
             Route::get('/audit-logs', [AuditLogController::class, 'index']);
+        });
+
+        // ── Tenant Payment Settings ──────────────────────────────────────────
+        Route::middleware('role:super_admin,owner')->prefix('settings')->group(function () {
+            Route::get('/payment', [PaymentSettingController::class, 'getTenantSettings']);
+            Route::put('/payment', [PaymentSettingController::class, 'updateTenantSettings']);
         });
     });
 });

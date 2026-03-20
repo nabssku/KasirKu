@@ -6,7 +6,6 @@ use App\Http\Controllers\Controller;
 use App\Models\Plan;
 use App\Models\PaymentTransaction;
 use App\Models\Subscription;
-use App\Services\BayarGgService;
 use App\Services\PlanLimitService;
 use App\Services\SubscriptionService;
 use Illuminate\Http\JsonResponse;
@@ -16,8 +15,7 @@ class SubscriptionController extends Controller
 {
     public function __construct(
         protected SubscriptionService $subscriptionService,
-        protected PlanLimitService    $planLimit,
-        protected BayarGgService      $bayarGg
+        protected PlanLimitService    $planLimit
     ) {}
 
     public function plans(): JsonResponse
@@ -68,22 +66,29 @@ class SubscriptionController extends Controller
         $plan   = Plan::findOrFail($validated['plan_id']);
         $tenant = auth()->user()->tenant;
 
-        $paymentTx = $this->subscriptionService->createPaymentTransaction(
-            $tenant,
-            $plan,
-            $validated['billing_cycle'] ?? 'monthly'
-        );
+        try {
+            $paymentTx = $this->subscriptionService->createPaymentTransaction(
+                $tenant,
+                $plan,
+                $validated['billing_cycle'] ?? 'monthly'
+            );
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Payment transaction created. Proceed to bayar.gg payment page.',
-            'data'    => [
-                'payment_transaction' => $paymentTx,
-                'payment_url'         => $paymentTx->payment_url,
-                'invoice_id'          => $paymentTx->invoice_id,
-                'final_amount'        => $paymentTx->final_amount,
-            ],
-        ], 201);
+            return response()->json([
+                'success' => true,
+                'message' => 'Transaksi pembayaran berhasil dibuat. Silakan selesaikan pembayaran.',
+                'data'    => [
+                    'payment_transaction' => $paymentTx,
+                    'payment_url'         => $paymentTx->payment_url,
+                    'invoice_id'          => $paymentTx->invoice_id,
+                    'final_amount'        => $paymentTx->final_amount,
+                ],
+            ], 201);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+            ], 500);
+        }
     }
 
     /**
@@ -91,8 +96,6 @@ class SubscriptionController extends Controller
      */
     public function checkPayment(string $invoice): JsonResponse
     {
-        // This will call bayar.gg API, update local PaymentTransaction,
-        // and activate subscription if status is 'paid'.
         $status = $this->subscriptionService->syncPaymentStatus($invoice);
         
         $paymentTx = PaymentTransaction::where('invoice_id', $invoice)->first();
@@ -106,24 +109,6 @@ class SubscriptionController extends Controller
             'paid_at'      => $paymentTx?->paid_at,
             'expires_at'   => $paymentTx?->created_at?->addHours(24),
         ]);
-    }
-
-    /**
-     * Webhook endpoint for bayar.gg payment callbacks.
-     *
-     * bayar.gg sends signature in HTTP headers:
-     *   X-Webhook-Signature  — HMAC-SHA256 digest
-     *   X-Webhook-Timestamp  — unix timestamp
-     */
-    public function webhook(Request $request): JsonResponse
-    {
-        $payload         = $request->all();
-        $headerSignature = $request->header('X-Webhook-Signature');
-        $headerTimestamp = $request->header('X-Webhook-Timestamp');
-
-        $this->subscriptionService->handleWebhook($payload, $headerSignature, $headerTimestamp);
-
-        return response()->json(['success' => true]);
     }
 
     public function history(): JsonResponse

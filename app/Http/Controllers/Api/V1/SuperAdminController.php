@@ -9,15 +9,14 @@ use App\Models\PlanFeature;
 use App\Models\Subscription;
 use App\Models\Tenant;
 use App\Models\User;
-use App\Services\BayarGgService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class SuperAdminController extends Controller
 {
-    public function __construct(
-        protected BayarGgService $bayarGg
-    ) {}
+    public function __construct() {}
+
     // ─── Dashboard Stats ──────────────────────────────────────────────────────
 
     public function stats(): JsonResponse
@@ -27,11 +26,7 @@ class SuperAdminController extends Controller
         $totalUsers          = User::withoutGlobalScopes()->whereNotNull('tenant_id')->count();
         $activeSubscriptions = Subscription::withoutGlobalScopes()->where('status', 'active')->count();
         $trialSubscriptions  = Subscription::withoutGlobalScopes()->where('status', 'trial')->count();
-        $totalRevenue        = Subscription::withoutGlobalScopes()
-            ->where('status', 'active')
-            ->join('plans', 'subscriptions.plan_id', '=', 'plans.id')
-            ->sum('plans.price');
-
+        
         // Actual paid revenue from payment transactions
         $totalPaidRevenue = PaymentTransaction::withoutGlobalScopes()
             ->where('status', 'paid')
@@ -53,7 +48,6 @@ class SuperAdminController extends Controller
                 'total_users'          => $totalUsers,
                 'active_subscriptions' => $activeSubscriptions,
                 'trial_subscriptions'  => $trialSubscriptions,
-                'total_revenue'        => (float) $totalRevenue,
                 'total_paid_revenue'   => (float) $totalPaidRevenue,
                 'total_orders'         => $totalOrders,
                 'pending_orders'       => $pendingOrders,
@@ -367,24 +361,28 @@ class SuperAdminController extends Controller
         return response()->json(['success' => true, 'data' => $order]);
     }
 
-    // ─── bayar.gg Payment Statistics ─────────────────────────────────────────
-
+    /**
+     * Get payment statistics for the platform.
+     */
     public function paymentStatistics(Request $request): JsonResponse
     {
-        $period = $request->input('period', 'month');
-
-        $result = $this->bayarGg->getStatistics($period);
-
-        if (!($result['success'] ?? false)) {
-            return response()->json([
-                'success' => false,
-                'message' => $result['message'] ?? 'Failed to fetch payment statistics.',
-            ], 502);
-        }
+        $days = $request->input('days', 30);
+        
+        $stats = PaymentTransaction::withoutGlobalScopes()
+            ->where('status', 'paid')
+            ->where('created_at', '>=', now()->subDays($days))
+            ->select(
+                DB::raw('DATE(created_at) as date'),
+                DB::raw('COUNT(*) as count'),
+                DB::raw('SUM(amount) as revenue')
+            )
+            ->groupBy('date')
+            ->orderBy('date')
+            ->get();
 
         return response()->json([
             'success' => true,
-            'data'    => $result['data'] ?? $result,
+            'data'    => $stats,
         ]);
     }
 }

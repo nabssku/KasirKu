@@ -6,15 +6,15 @@ use App\Models\Plan;
 use App\Models\Subscription;
 use App\Models\PaymentTransaction;
 use App\Models\Tenant;
+use App\Services\Payment\PaymentGatewayFactory;
+use App\Models\SystemSetting;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 class SubscriptionService
 {
-    public function __construct(
-        protected BayarGgService $bayarGg
-    ) {}
+    public function __construct() {}
 
     // ─── Query Helpers ────────────────────────────────────────────────────────
 
@@ -79,25 +79,29 @@ class SubscriptionService
         $orderId       = 'SUB-' . strtoupper(substr($tenant->id, 0, 8)) . '-' . time();
         $amount        = (int) $plan->price;
         $callbackUrl   = config('app.url') . '/api/v1/subscriptions/webhook';
-        $redirectUrl   = 'https://jagokasir.store/subscription';
+        $redirectUrl   = config('app.frontend_url') . '/subscription';
         $customerEmail = $tenant->email ?? auth()->user()?->email ?? '';
 
-        $result = $this->bayarGg->createPayment([
+        $gateway = PaymentGatewayFactory::getSubscriptionGateway();
+
+        $result = $gateway->createPayment([
             'amount'         => $amount,
             'description'    => 'Langganan Paket ' . $plan->name . ' (' . $billingCycle . ')',
+            'order_id'       => $orderId,
             'customer_name'  => $tenant->name,
             'customer_email' => $customerEmail,
             'redirect_url'   => $redirectUrl,
             'callback_url'   => $callbackUrl,
-            'payment_method' => 'gopay_qris',
         ]);
 
-        $invoiceId   = $result['data']['invoice_id']   ?? null;
-        $paymentUrl  = $result['data']['payment_url']  ?? null;
-        $finalAmount = $result['data']['final_amount'] ?? $amount;
+        $invoiceId   = $result['invoice_id']   ?? null;
+        $paymentUrl  = $result['payment_url']  ?? null;
+        $finalAmount = $result['final_amount'] ?? $amount;
+        $gatewayName = SystemSetting::get('subscription_gateway', 'midtrans');
 
         if (!$result['success'] || !$invoiceId) {
-            Log::error('BayarGg createPayment failed', ['order_id' => $orderId, 'result' => $result]);
+            Log::error('Payment creation failed', ['order_id' => $orderId, 'result' => $result]);
+            throw new \RuntimeException('Gagal membuat transaksi pembayaran.');
         }
 
         // Create a pending subscription record
@@ -113,51 +117,45 @@ class SubscriptionService
             'tenant_id'        => $tenant->id,
             'type'             => 'subscription',
             'amount'           => $amount,
-            'gateway'          => 'bayargg',
+            'gateway'          => $gatewayName,
             'gateway_order_id' => $orderId,
             'invoice_id'       => $invoiceId,
             'payment_url'      => $paymentUrl,
             'final_amount'     => $finalAmount,
             'status'           => 'pending',
+            'gateway_payload'  => $result['raw'] ?? $result,
         ]);
     }
 
-    // ─── Payment Status Sync (no webhook needed) ──────────────────────────────
+    // ─── Payment Status Sync ──────────────────────────────────────────────────
 
     /**
-     * Check a single invoice against bayar.gg and update local DB.
-     * Called by frontend polling AND by the sync command.
-     * Returns the final local status string.
+     * Check a single payment status against the gateway and update local DB.
      */
     public function syncPaymentStatus(string $invoiceId): string
     {
         $paymentTx = PaymentTransaction::where('invoice_id', $invoiceId)->first();
         if (!$paymentTx) return 'not_found';
 
-        // Already settled — no need to call API again
         if (in_array($paymentTx->status, ['paid', 'expired', 'failed'])) {
             return $paymentTx->status;
         }
 
-        $result = $this->bayarGg->checkPayment($invoiceId);
+        $gateway = PaymentGatewayFactory::getSubscriptionGateway();
+        $result  = $gateway->checkPayment($invoiceId);
+
         if (!($result['success'] ?? false)) {
-            Log::warning('BayarGg syncPaymentStatus: API call failed', ['invoice_id' => $invoiceId]);
+            Log::warning('Payment status check failed', ['invoice_id' => $invoiceId]);
             return $paymentTx->status;
         }
 
-        $remoteStatus = $result['status'] ?? 'pending';
-        $newStatus    = match($remoteStatus) {
-            'paid'      => 'paid',
-            'expired'   => 'expired',
-            'cancelled' => 'failed',
-            default     => 'pending',
-        };
+        $newStatus = $result['status'] ?? 'pending';
 
         if ($newStatus !== $paymentTx->status) {
             $paymentTx->update([
                 'status'  => $newStatus,
                 'paid_at' => $newStatus === 'paid' ? now() : null,
-                'gateway_payload' => $result,
+                'gateway_payload' => $result['raw'] ?? $result,
             ]);
 
             if ($newStatus === 'paid') {
@@ -169,64 +167,22 @@ class SubscriptionService
     }
 
     /**
-     * Pull all PAID invoices from bayar.gg via list-payments
-     * and sync any that are still pending locally.
-     * Run this on a schedule (e.g., every 2 minutes).
+     * Sync all pending subscription payments.
      */
     public function syncPendingPayments(): int
     {
-        $synced = 0;
-
-        // Get pending transactions from local DB
-        $pending = PaymentTransaction::where('gateway', 'bayargg')
+        $pending = PaymentTransaction::where('type', 'subscription')
             ->where('status', 'pending')
             ->whereNotNull('invoice_id')
             ->get();
 
-        if ($pending->isEmpty()) return 0;
-
-        // Fetch paid list from bayar.gg to batch-match
-        $listResult = $this->bayarGg->listPayments(['status' => 'paid', 'limit' => 100]);
-        $paidInvoices = collect($listResult['data'] ?? [])
-            ->pluck('invoice_id')
-            ->filter()
-            ->flip(); // use as hashmap for O(1) lookup
-
+        $count = 0;
         foreach ($pending as $tx) {
-            $invoiceId = $tx->invoice_id;
-
-            if ($paidInvoices->has($invoiceId)) {
-                // Batch-confirmed as paid — do a precise check to get full data
-                $this->syncPaymentStatus($invoiceId);
-                $synced++;
-            } else {
-                // Also individually check to catch expired/cancelled
-                $checkResult = $this->bayarGg->checkPayment($invoiceId);
-                $remoteStatus = $checkResult['status'] ?? 'pending';
-
-                $newStatus = match($remoteStatus) {
-                    'paid'      => 'paid',
-                    'expired'   => 'expired',
-                    'cancelled' => 'failed',
-                    default     => 'pending',
-                };
-
-                if ($newStatus !== 'pending') {
-                    $tx->update([
-                        'status'  => $newStatus,
-                        'paid_at' => $newStatus === 'paid' ? now() : null,
-                        'gateway_payload' => $checkResult,
-                    ]);
-
-                    if ($newStatus === 'paid') {
-                        $this->activateSubscription($tx->tenant_id);
-                        $synced++;
-                    }
-                }
-            }
+            $this->syncPaymentStatus($tx->invoice_id);
+            $count++;
         }
 
-        return $synced;
+        return $count;
     }
 
     /**
@@ -235,6 +191,7 @@ class SubscriptionService
     public function activateSubscription(string $tenantId): void
     {
         $subscription = Subscription::where('tenant_id', $tenantId)
+            ->where('status', 'pending')
             ->latest()
             ->first();
 
@@ -257,44 +214,10 @@ class SubscriptionService
             'subscription_ends_at' => $endsAt,
         ]);
 
-        Log::info('BayarGg: subscription activated', [
+        Log::info('Subscription activated', [
             'tenant_id'       => $tenantId,
             'subscription_id' => $subscription->id,
             'ends_at'         => $endsAt,
         ]);
-    }
-
-    // ─── Webhook (fallback, may not fire for gopay_qris) ─────────────────────
-
-    /**
-     * Handle bayar.gg payment webhook callback.
-     *
-     * Signature from headers:
-     *   X-Webhook-Signature  — HMAC-SHA256 hex digest
-     *   X-Webhook-Timestamp  — unix timestamp string
-     *
-     * Signed data: "{invoice_id}|{status}|{final_amount}|{timestamp}"
-     */
-    public function handleWebhook(array $payload, ?string $headerSignature = null, ?string $headerTimestamp = null): void
-    {
-        $invoiceId   = $payload['invoice_id']   ?? null;
-        $status      = $payload['status']        ?? '';
-        $finalAmount = (int) ($payload['final_amount'] ?? 0);
-
-        if (!$invoiceId) {
-            Log::warning('BayarGg webhook: missing invoice_id');
-            return;
-        }
-
-        // Verify HMAC-SHA256 signature from headers
-        if ($headerSignature && $headerTimestamp) {
-            if (!$this->bayarGg->verifySignature($invoiceId, $status, $finalAmount, $headerTimestamp, $headerSignature)) {
-                Log::warning('BayarGg webhook: invalid signature', ['invoice_id' => $invoiceId]);
-                return;
-            }
-        }
-
-        // Delegate to unified sync method
-        $this->syncPaymentStatus($invoiceId);
     }
 }

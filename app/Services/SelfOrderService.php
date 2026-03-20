@@ -12,6 +12,7 @@ use App\Models\Shift;
 use App\Models\Subscription;
 use App\Models\Transaction;
 use App\Models\TransactionItem;
+use App\Services\Payment\PaymentGatewayFactory;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -22,7 +23,6 @@ use Illuminate\Validation\ValidationException;
 class SelfOrderService
 {
     public function __construct(
-        protected BayarGgService      $bayarGg,
         protected KitchenOrderService $kitchenOrderService,
         protected ShiftService        $shiftService,
     ) {}
@@ -107,7 +107,7 @@ class SelfOrderService
 
     // ──────────────────────────────────────────────────────────────────────────
     // 4. Submit the order: validate session → create Transaction (pending_payment)
-    //    → trigger BayarGG QRIS payment → store PaymentTransaction
+    //    → trigger payment gateway → store PaymentTransaction
     // ──────────────────────────────────────────────────────────────────────────
     public function submitOrder(string $sessionToken, array $data, Request $request): array
     {
@@ -195,23 +195,26 @@ class SelfOrderService
                 'submitted_at' => now(),
             ]);
 
-            // ── g. Create QRIS payment via BayarGG ───────────────────────────
+            // ── g. Create payment via Gateway ───────────────────────────────
             $redirectUrl  = $data['redirect_url'] ?? url("/menu/order/{$session->session_token}/status");
             $customerName = $data['customer_name'] ?? 'Tamu';
 
-            $paymentResponse = $this->bayarGg->createPayment([
+            $gateway = PaymentGatewayFactory::getTenantGateway($outlet->tenant);
+
+            $paymentResponse = $gateway->createPayment([
                 'amount'         => (int) $grandTotal,
                 'description'    => "Self Order #{$invoiceNumber} - Meja {$table->name}",
+                'order_id'       => $invoiceNumber,
                 'customer_name'  => $customerName,
                 'customer_email' => 'tamu@self-order.local',
                 'redirect_url'   => $redirectUrl,
-                'payment_method' => 'gopay_qris',
-
+                'method'         => 'qris',
             ]);
 
-            $invoiceId  = $paymentResponse['data']['invoice_id']  ?? $paymentResponse['invoice_id']  ?? null;
-            $paymentUrl = $paymentResponse['data']['payment_url'] ?? $paymentResponse['payment_url'] ?? null;
-            $final_amount = $paymentResponse['data']['final_amount'] ?? $paymentResponse['final_amount'] ?? null;
+            $invoiceId   = $paymentResponse['invoice_id']  ?? null;
+            $paymentUrl  = $paymentResponse['payment_url'] ?? null;
+            $final_amount = $paymentResponse['final_amount'] ?? $grandTotal;
+            $gatewayName = $outlet->tenant->settings['payment_gateway'] ?? 'midtrans';
 
             // ── g2. Generate Dynamic QRIS (Static to Dynamic) ────────────────
             $baseQris = "00020101021126610014COM.GO-JEK.WWW01189360091439981678490210G9981678490303UMI51440014ID.CO.QRIS.WWW0215ID10264896514830303UMI5204899953033605802ID5924jagokasir.store, Digital6006MALANG61056512362070703A0163040E80";
@@ -237,14 +240,14 @@ class SelfOrderService
                 'outlet_id'      => $outlet->id,
                 'type'           => 'self_order_payment',
                 'amount'         => $grandTotal,
-                'gateway'        => 'bayargg',
+                'gateway'        => $gatewayName,
                 'gateway_order_id' => $invoiceNumber,
                 'invoice_id'     => $invoiceId,
                 'payment_url'    => $paymentUrl,
                 'final_amount'   => (int) $final_amount,
                 'status'         => 'pending',
                 'expires_at'     => $paymentExpiry,
-                'gateway_payload' => $paymentResponse,
+                'gateway_payload' => $paymentResponse['raw'] ?? $paymentResponse,
             ]);
 
             return [
@@ -259,7 +262,7 @@ class SelfOrderService
     }
 
     // ──────────────────────────────────────────────────────────────────────────
-    // 5. Sync payment status manually (since GG has no callback)
+    // 5. Sync payment status manually
     // ──────────────────────────────────────────────────────────────────────────
     public function syncPaymentStatus(string $invoiceId): string
     {
@@ -274,10 +277,10 @@ class SelfOrderService
         // between PaymentTransaction and Transaction tables.
 
 
-        $result = $this->bayarGg->checkPayment($invoiceId);
+        $gateway = PaymentGatewayFactory::getTenantGateway($paymentTx->tenant);
+        $result  = $gateway->checkPayment($invoiceId, ['amount' => $paymentTx->amount]);
 
-        // BayarGG may respond with success=false on network/auth error
-        if (!($result['success'] ?? true)) {
+        if (!($result['success'] ?? false)) {
             Log::warning('SelfOrder payment check failed', [
                 'invoice_id' => $invoiceId,
                 'response'   => $result,
@@ -285,9 +288,7 @@ class SelfOrderService
             return $paymentTx->status;
         }
 
-        // Now flattened thanks to BayarGgService normalization
-        $remoteStatus = $result['status'] ?? 'pending';
-        $newStatus    = $this->mapGatewayStatus($remoteStatus);
+        $newStatus = $result['status'] ?? 'pending';
 
         Log::info('SelfOrder payment check', [
             'invoice_id'    => $invoiceId,
@@ -302,7 +303,7 @@ class SelfOrderService
             if ($newStatus !== $paymentTx->status) {
                 $paymentTx->update([
                     'status'          => $newStatus,
-                    'gateway_payload' => $result,
+                    'gateway_payload' => $result['raw'] ?? $result,
                     'paid_at'         => $newStatus === 'paid' ? now() : null,
                 ]);
             }

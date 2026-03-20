@@ -35,9 +35,5 @@ return [
         ],
     ],
 
-    'bayargg' => [
-        'api_key'  => env('BAYARGG_API_KEY'),
-        'base_url' => env('BAYARGG_BASE_URL', 'https://bayar.gg/api'),
-    ],
 
 ];
