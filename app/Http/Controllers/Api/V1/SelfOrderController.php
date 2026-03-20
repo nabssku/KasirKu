@@ -104,7 +104,10 @@ class SelfOrderController extends Controller
             'data'    => [
                 'invoice_number' => $result['transaction']->invoice_number,
                 'grand_total'    => $result['transaction']->grand_total,
-                'payment_response' => $result['paymentResponse'],
+                'payment_response' => [
+                    'success' => true,
+                    'data'    => $result['payment_response'],
+                ],
                 'payment_url'    => $result['payment_url'],
                 'invoice_id'     => $result['invoice_id'],
                 'expires_at'     => $result['expires_at'],

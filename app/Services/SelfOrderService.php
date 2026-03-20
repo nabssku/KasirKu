@@ -216,16 +216,7 @@ class SelfOrderService
             $final_amount = $paymentResponse['final_amount'] ?? $grandTotal;
             $gatewayName = $outlet->tenant->settings['payment_gateway'] ?? 'midtrans';
 
-            // ── g2. Generate Dynamic QRIS (Static to Dynamic) ────────────────
-            $baseQris = "00020101021126610014COM.GO-JEK.WWW01189360091439981678490210G9981678490303UMI51440014ID.CO.QRIS.WWW0215ID10264896514830303UMI5204899953033605802ID5924jagokasir.store, Digital6006MALANG61056512362070703A0163040E80";
-            if ($final_amount && isset($paymentResponse['data'])) {
-                $convertedQris = $this->generateDynamicQris($baseQris, (int)$final_amount);
-                $paymentResponse['data']['qris_converter'] = [
-                    'original_qris'  => $baseQris,
-                    'converted_qris' => $convertedQris
-                ];
-            }
-
+            // ── g2. Finalize payment data ───────────────────────────────────
             if (!$invoiceId) {
                 // Roll back — transaction will not be kept (DB::transaction handles this)
                 throw new \RuntimeException(
@@ -251,9 +242,9 @@ class SelfOrderService
             ]);
 
             return [
-                'transaction'   => $transaction,
-                'paymentResponse' => $paymentResponse,
-                'payment_url'   => $paymentUrl,
+                'transaction'      => $transaction,
+                'payment_response' => $paymentResponse,
+                'payment_url'      => $paymentUrl,
                 'invoice_id'    => $invoiceId,
                 'expires_at'    => $paymentExpiry->toIso8601String(),
                 'session_token' => $sessionToken,
@@ -606,52 +597,4 @@ class SelfOrderService
         }
     }
 
-    /**
-     * Convert static QRIS to Dynamic QRIS by embedding amount and recalculating CRC.
-     */
-    private function generateDynamicQris(string $staticQris, $amount): string
-    {
-        // 1. Remove last 4 chars (CRC)
-        $qris = substr(trim($staticQris), 0, -4);
-
-        // 2. Change static indicator (010211) to dynamic (010212)
-        $qris = str_replace("010211", "010212", $qris);
-
-        // 3. Prepare amount tag (54)
-        $amountStr = (string)$amount;
-        $amountTag = "54" . sprintf("%02d", strlen($amountStr)) . $amountStr;
-
-        // 4. Insert amount before country code (5802ID)
-        if (strpos($qris, "5802ID") !== false) {
-            $parts = explode("5802ID", $qris);
-            $qris = $parts[0] . $amountTag . "5802ID" . $parts[1];
-        } else {
-            // Fallback: append if tag not found
-            $qris .= $amountTag;
-        }
-
-        // 5. Append new CRC
-        return $qris . $this->crc16($qris);
-    }
-
-    /**
-     * CCITT-FALSE CRC16 implementation
-     */
-    private function crc16(string $str): string
-    {
-        $crc = 0xFFFF;
-        $strlen = strlen($str);
-        for ($c = 0; $c < $strlen; $c++) {
-            $crc ^= ord($str[$c]) << 8;
-            for ($i = 0; $i < 8; $i++) {
-                if ($crc & 0x8000) {
-                    $crc = ($crc << 1) ^ 0x1021;
-                } else {
-                    $crc = $crc << 1;
-                }
-            }
-        }
-        $hex = strtoupper(dechex($crc & 0xFFFF));
-        return str_pad($hex, 4, "0", STR_PAD_LEFT);
-    }
 }
