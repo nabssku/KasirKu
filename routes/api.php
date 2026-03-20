@@ -58,6 +58,9 @@ Route::prefix('v1')->group(function () {
     // ─── Subscription Plans (public) ──────────────────────────────────────────
     Route::get('/plans', [SubscriptionController::class, 'plans']);
 
+    // ─── System Settings (public) ─────────────────────────────────────────────
+    Route::get('/system-settings', [\App\Http\Controllers\Api\V1\SystemSettingController::class, 'index']);
+
     // ─── Super Admin Routes (no tenant/subscription middleware) ───────────────
     Route::middleware(['auth:api', 'role:super_admin'])->prefix('super-admin')->group(function () {
         Route::get('/stats',                    [SuperAdminController::class, 'stats']);
@@ -92,6 +95,10 @@ Route::prefix('v1')->group(function () {
         Route::get('/app-versions',             [\App\Http\Controllers\Api\V1\AppVersionController::class, 'index']);
         Route::post('/app-versions',            [\App\Http\Controllers\Api\V1\AppVersionController::class, 'store']);
         Route::delete('/app-versions/{id}',     [\App\Http\Controllers\Api\V1\AppVersionController::class, 'destroy']);
+
+        // ── System Settings Management ────────────────────────────────────────
+        Route::get('/system-settings',          [\App\Http\Controllers\Api\V1\SystemSettingController::class, 'adminIndex']);
+        Route::put('/system-settings',          [\App\Http\Controllers\Api\V1\SystemSettingController::class, 'update']);
     });
 
     // ─── Shared Auth Routes (works for all authenticated users incl. super_admin) ─
