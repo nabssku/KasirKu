@@ -65,6 +65,7 @@ class OutletController extends Controller
             'service_charge' => ['nullable', 'numeric', 'min:0', 'max:100'],
             'is_active'      => ['nullable', 'boolean'],
             'receipt_settings' => ['nullable', 'array'],
+            'google_review_link' => ['nullable', 'string'],
             'logo'           => ['nullable', 'image', 'max:2048'],
         ]);
         

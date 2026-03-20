@@ -26,6 +26,7 @@ class Outlet extends Model
         'service_charge',
         'is_active',
         'receipt_settings',
+        'google_review_link',
     ];
 
     protected $casts = [

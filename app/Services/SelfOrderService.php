@@ -283,7 +283,6 @@ class SelfOrderService
 
         Log::info('SelfOrder payment check', [
             'invoice_id'    => $invoiceId,
-            'remote_status' => $remoteStatus,
             'new_status'    => $newStatus,
             'local_status'  => $paymentTx->status,
         ]);
@@ -419,6 +418,7 @@ class SelfOrderService
             'payment_url'        => $activePayment?->payment_url,
             'payment_checking'   => $paymentChecking,
             'message'            => $this->statusMessage($effectiveStatus),
+            'google_review_link' => ($effectiveStatus === 'completed' || $effectiveStatus === 'ready') ? $session->outlet->google_review_link : null,
             'items'              => $transaction->items()->with('product:id,name,image')->get()->map(function($item) {
                 return [
                     'id'            => $item->id,
@@ -428,6 +428,61 @@ class SelfOrderService
                     'price'         => $item->price,
                 ];
             }),
+        ];
+    }
+
+    /**
+     * Get receipt data for a self-order session.
+     */
+    public function getPublicReceipt(string $sessionToken): array
+    {
+        $session = SelfOrderSession::where('session_token', $sessionToken)->first();
+
+        if (!$session) {
+            throw ValidationException::withMessages(['session' => 'Sesi tidak ditemukan.']);
+        }
+
+        $transaction = Transaction::withoutGlobalScopes()
+            ->with(['items.modifiers', 'customer', 'outlet', 'table', 'payments'])
+            ->where('outlet_id', $session->outlet_id)
+            ->where('table_id', $session->table_id)
+            ->where('source', 'self_order')
+            ->latest()
+            ->first();
+
+        if (!$transaction) {
+            throw ValidationException::withMessages(['transaction' => 'Transaksi tidak ditemukan.']);
+        }
+
+        $outlet = $transaction->outlet;
+
+        return [
+            'store_name'     => $outlet?->name ?? config('app.name', 'KasirKu'),
+            'store_address'  => $outlet?->address ?? '',
+            'store_phone'    => $outlet?->phone ?? '',
+            'invoice_number' => $transaction->invoice_number,
+            'date'           => $transaction->created_at->setTimezone('Asia/Jakarta')->format('d/m/Y H:i'),
+            'customer'       => $transaction->customer_name ?? 'Tamu',
+            'type'           => $transaction->type,
+            'table_name'     => $transaction->table?->name,
+            'items'          => $transaction->items->map(fn($item) => [
+                'name'      => $item->product_name,
+                'quantity'  => $item->quantity,
+                'price'     => (float) $item->price,
+                'subtotal'  => (float) $item->subtotal,
+                'modifiers' => $item->modifiers->map(fn($m) => [
+                    'name' => $m->modifier_name,
+                    'price' => (float) $m->price,
+                ])->values()->all(),
+            ]),
+            'subtotal'       => (float) $transaction->subtotal,
+            'tax'            => (float) $transaction->tax,
+            'service_charge' => (float) $transaction->service_charge,
+            'grand_total'    => (float) $transaction->grand_total,
+            'paid_amount'    => (float) $transaction->paid_amount,
+            'payment_method' => $transaction->payments->first()?->payment_method ?? 'e-wallet',
+            'status'         => $transaction->status,
+            'receipt_settings' => $outlet?->receipt_settings,
         ];
     }
 

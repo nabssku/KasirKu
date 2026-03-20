@@ -52,6 +52,7 @@ Route::prefix('v1')->group(function () {
         Route::post('/self-order/session',         [SelfOrderController::class, 'createSession']);
         Route::post('/self-order',                 [SelfOrderController::class, 'submitOrder']);
         Route::get('/self-order/{sessionToken}/status', [SelfOrderController::class, 'orderStatus']);
+        Route::get('/self-order/{sessionToken}/receipt', [SelfOrderController::class, 'publicReceipt']);
     });
 
     // ─── Subscription Plans (public) ──────────────────────────────────────────

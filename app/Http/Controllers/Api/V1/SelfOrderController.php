@@ -124,4 +124,13 @@ class SelfOrderController extends Controller
 
         return response()->json(['success' => true, 'data' => $status]);
     }
+
+    // ── GET /api/v1/public/self-order/{sessionToken}/receipt ──────────────────
+    // Get receipt data for a self-order session
+    public function publicReceipt(string $sessionToken): JsonResponse
+    {
+        $receipt = $this->service->getPublicReceipt($sessionToken);
+
+        return response()->json(['success' => true, 'data' => $receipt]);
+    }
 }
