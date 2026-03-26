@@ -302,9 +302,16 @@ Route::prefix('v1')->group(function () {
             });
         });
 
-        Route::middleware(['role:super_admin,owner,admin', 'feature:audit_log'])->group(function () {
+        Route::middleware(['role:super_admin,owner', 'feature:audit_log'])->group(function () {
             Route::get('/audit-logs', [AuditLogController::class, 'index']);
         });
+
+        // ─── Help Desk / Chat System ──────────────────────────────────────────
+        Route::get('/tickets',              [\App\Http\Controllers\Api\V1\TicketController::class, 'index']);
+        Route::post('/tickets',             [\App\Http\Controllers\Api\V1\TicketController::class, 'store']);
+        Route::get('/tickets/{id}',         [\App\Http\Controllers\Api\V1\TicketController::class, 'show']);
+        Route::patch('/tickets/{id}/status', [\App\Http\Controllers\Api\V1\TicketController::class, 'updateStatus']);
+        Route::post('/chat/messages',       [\App\Http\Controllers\Api\V1\ChatMessageController::class, 'store']);
 
         // ── Tenant Payment Settings ──────────────────────────────────────────
         Route::middleware('role:super_admin,owner')->prefix('settings')->group(function () {

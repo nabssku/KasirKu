@@ -25,6 +25,7 @@ class User extends Authenticatable implements JWTSubject
         'name',
         'email',
         'password',
+        'image',
         'is_active',
     ];
 
@@ -67,6 +68,11 @@ class User extends Authenticatable implements JWTSubject
     public function shifts(): HasMany
     {
         return $this->hasMany(Shift::class, 'opened_by');
+    }
+
+    public function tickets(): HasMany
+    {
+        return $this->hasMany(Ticket::class);
     }
 
     // ─── RBAC Helpers ─────────────────────────────────────────────────────────
