@@ -39,6 +39,9 @@ Route::prefix('v1')->group(function () {
     Route::post('/auth/register', [AuthController::class, 'register']);
     Route::post('/auth/login',    [AuthController::class, 'login']);
     Route::post('/auth/refresh',  [AuthController::class, 'refresh']);
+    Route::post('/auth/otp/send',   [AuthController::class, 'sendOtp']);
+    Route::post('/auth/otp/verify', [AuthController::class, 'verifyOtp']);
+    Route::post('/auth/reset-password', [AuthController::class, 'resetPassword']);
 
     // ─── Payment Webhooks ────────────────────────────────────────────────────
     Route::post('/webhooks/midtrans', [WebhookController::class, 'midtrans']);
