@@ -385,4 +385,100 @@ class SuperAdminController extends Controller
             'data'    => $stats,
         ]);
     }
+
+    // ─── Discount Management ──────────────────────────────────────────────────
+
+    public function indexDiscounts(Request $request): JsonResponse
+    {
+        $query = \App\Models\Discount::query();
+
+        if ($request->filled('search')) {
+            $search = $request->input('search');
+            $query->where(function ($q) use ($search) {
+                $q->where('code', 'like', "%{$search}%")
+                  ->orWhere('name', 'like', "%{$search}%");
+            });
+        }
+
+        if ($request->filled('is_active')) {
+            $query->where('is_active', $request->boolean('is_active'));
+        }
+
+        $discounts = $query->orderByDesc('created_at')->paginate($request->input('per_page', 15));
+
+        return response()->json(['success' => true, 'data' => $discounts]);
+    }
+
+    public function storeDiscount(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'code'                => 'required|string|max:50|unique:discounts,code',
+            'name'                => 'required|string|max:255',
+            'description'         => 'nullable|string',
+            'type'                => 'required|in:percentage,fixed',
+            'value'               => 'required|numeric|min:0',
+            'min_purchase_amount' => 'required|numeric|min:0',
+            'max_uses_total'      => 'nullable|integer|min:1',
+            'max_uses_per_user'   => 'required|integer|min:1',
+            'applicable_plan_ids' => 'nullable|array',
+            'applicable_plan_ids.*'=> 'integer|exists:plans,id',
+            'valid_from'          => 'nullable|date',
+            'valid_until'         => 'nullable|date',
+            'is_active'           => 'boolean',
+        ]);
+
+        $discount = \App\Models\Discount::create($validated);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Diskon berhasil dibuat.',
+            'data'    => $discount,
+        ], 201);
+    }
+
+    public function showDiscount(int $id): JsonResponse
+    {
+        $discount = \App\Models\Discount::findOrFail($id);
+        return response()->json(['success' => true, 'data' => $discount]);
+    }
+
+    public function updateDiscount(Request $request, int $id): JsonResponse
+    {
+        $discount = \App\Models\Discount::findOrFail($id);
+
+        $validated = $request->validate([
+            'code'                => 'sometimes|string|max:50|unique:discounts,code,' . $id,
+            'name'                => 'sometimes|string|max:255',
+            'description'         => 'nullable|string',
+            'type'                => 'sometimes|in:percentage,fixed',
+            'value'               => 'sometimes|numeric|min:0',
+            'min_purchase_amount' => 'sometimes|numeric|min:0',
+            'max_uses_total'      => 'nullable|integer|min:1',
+            'max_uses_per_user'   => 'sometimes|integer|min:1',
+            'applicable_plan_ids' => 'nullable|array',
+            'applicable_plan_ids.*'=> 'integer|exists:plans,id',
+            'valid_from'          => 'nullable|date',
+            'valid_until'         => 'nullable|date',
+            'is_active'           => 'boolean',
+        ]);
+
+        $discount->update($validated);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Diskon berhasil diperbarui.',
+            'data'    => $discount->fresh(),
+        ]);
+    }
+
+    public function destroyDiscount(int $id): JsonResponse
+    {
+        $discount = \App\Models\Discount::findOrFail($id);
+        $discount->delete();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Diskon berhasil dihapus.',
+        ]);
+    }
 }

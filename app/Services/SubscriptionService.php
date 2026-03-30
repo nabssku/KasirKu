@@ -8,6 +8,7 @@ use App\Models\PaymentTransaction;
 use App\Models\Tenant;
 use App\Services\Payment\PaymentGatewayFactory;
 use App\Models\SystemSetting;
+use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -97,10 +98,24 @@ class SubscriptionService
 
     // ─── Payment Creation ─────────────────────────────────────────────────────
 
-    public function createPaymentTransaction(Tenant $tenant, Plan $plan, string $billingCycle = 'monthly'): PaymentTransaction
+    public function createPaymentTransaction(Tenant $tenant, Plan $plan, string $billingCycle = 'monthly', ?string $discountCode = null): PaymentTransaction
     {
         $orderId       = 'SUB-' . strtoupper(substr($tenant->id, 0, 8)) . '-' . time();
-        $amount        = (int) $plan->price;
+        $baseAmount    = (float) $plan->price;
+        $discountAmount = 0;
+        $discountId    = null;
+
+        if ($discountCode) {
+            $discount = \App\Models\Discount::where('code', $discountCode)->first();
+            if ($discount && $discount->isValid($plan->id, $baseAmount, $tenant->id)) {
+                $discountAmount = $discount->calculateDiscount($baseAmount);
+                $discountId    = $discount->id;
+            }
+        }
+
+        $amount        = (int) ($baseAmount - $discountAmount);
+        if ($amount < 0) $amount = 0;
+
         $callbackUrl   = config('app.url') . '/api/v1/subscriptions/webhook';
         $redirectUrl   = config('app.frontend_url') . '/subscription';
         $customerEmail = $tenant->email ?? auth()->user()?->email ?? '';
@@ -139,7 +154,9 @@ class SubscriptionService
         return PaymentTransaction::create([
             'tenant_id'        => $tenant->id,
             'type'             => 'subscription',
-            'amount'           => $amount,
+            'amount'           => $baseAmount, // original price
+            'discount_id'      => $discountId,
+            'discount_amount'  => $discountAmount,
             'gateway'          => $gatewayName,
             'gateway_order_id' => $orderId,
             'invoice_id'       => $invoiceId,
@@ -183,6 +200,20 @@ class SubscriptionService
 
             if ($newStatus === 'paid') {
                 $this->activateSubscription($paymentTx->tenant_id);
+                
+                // Record discount usage if applicable
+                if ($paymentTx->discount_id) {
+                    $discount = \App\Models\Discount::find($paymentTx->discount_id);
+                    if ($discount) {
+                        \App\Models\DiscountUsage::create([
+                            'discount_id'            => $discount->id,
+                            'tenant_id'              => $paymentTx->tenant_id,
+                            'user_id'                => auth()->id() ?? User::where('tenant_id', $paymentTx->tenant_id)->first()?->id,
+                            'payment_transaction_id' => $paymentTx->id,
+                        ]);
+                        $discount->increment('uses_count');
+                    }
+                }
             }
         }
 

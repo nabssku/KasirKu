@@ -61,6 +61,7 @@ class SubscriptionController extends Controller
         $validated = $request->validate([
             'plan_id'       => ['required', 'integer', 'exists:plans,id'],
             'billing_cycle' => ['nullable', 'string', 'in:monthly,yearly'],
+            'discount_code' => ['nullable', 'string'],
         ]);
 
         $plan   = Plan::findOrFail($validated['plan_id']);
@@ -70,7 +71,8 @@ class SubscriptionController extends Controller
             $paymentTx = $this->subscriptionService->createPaymentTransaction(
                 $tenant,
                 $plan,
-                $validated['billing_cycle'] ?? 'monthly'
+                $validated['billing_cycle'] ?? 'monthly',
+                $validated['discount_code'] ?? null
             );
 
             return response()->json([
@@ -108,6 +110,45 @@ class SubscriptionController extends Controller
             'final_amount' => $paymentTx?->final_amount,
             'paid_at'      => $paymentTx?->paid_at,
             'expires_at'   => $paymentTx?->created_at?->addHours(24),
+        ]);
+    }
+
+    public function validateDiscount(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'code'    => ['required', 'string'],
+            'plan_id' => ['required', 'integer', 'exists:plans,id'],
+        ]);
+
+        $discount = \App\Models\Discount::where('code', $validated['code'])->first();
+        $plan     = Plan::findOrFail($validated['plan_id']);
+        $tenant   = auth()->user()->tenant;
+
+        if (!$discount) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Kode diskon tidak ditemukan.',
+            ], 404);
+        }
+
+        if (!$discount->isValid($plan->id, (float) $plan->price, $tenant->id)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Kode diskon tidak dapat digunakan untuk paket ini atau sudah kedaluwarsa.',
+            ], 422);
+        }
+
+        $discountAmount = $discount->calculateDiscount((float) $plan->price);
+
+        return response()->json([
+            'success' => true,
+            'data'    => [
+                'code'            => $discount->code,
+                'type'            => $discount->type,
+                'value'           => $discount->value,
+                'discount_amount' => $discountAmount,
+                'final_price'     => (float) $plan->price - $discountAmount,
+            ],
         ]);
     }
 

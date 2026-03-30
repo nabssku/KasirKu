@@ -29,6 +29,8 @@ class PaymentTransaction extends Model
         'gateway_payload',
         'paid_at',
         'expires_at',
+        'discount_id',
+        'discount_amount',
     ];
 
     protected $casts = [

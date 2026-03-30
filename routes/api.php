@@ -102,6 +102,13 @@ Route::prefix('v1')->group(function () {
         // ── System Settings Management ────────────────────────────────────────
         Route::get('/system-settings',          [\App\Http\Controllers\Api\V1\SystemSettingController::class, 'adminIndex']);
         Route::put('/system-settings',          [\App\Http\Controllers\Api\V1\SystemSettingController::class, 'update']);
+
+        // ── Discount Management ───────────────────────────────────────────────
+        Route::get('/discounts',                [SuperAdminController::class, 'indexDiscounts']);
+        Route::post('/discounts',               [SuperAdminController::class, 'storeDiscount']);
+        Route::get('/discounts/{id}',           [SuperAdminController::class, 'showDiscount']);
+        Route::put('/discounts/{id}',           [SuperAdminController::class, 'updateDiscount']);
+        Route::delete('/discounts/{id}',        [SuperAdminController::class, 'destroyDiscount']);
     });
 
     // ─── Shared Auth Routes (works for all authenticated users incl. super_admin) ─
@@ -120,6 +127,7 @@ Route::prefix('v1')->group(function () {
             Route::get('/subscriptions/history',   [SubscriptionController::class, 'history']);
             Route::get('/subscriptions/usage',     [SubscriptionController::class, 'usage']);
             Route::post('/subscriptions/subscribe',[SubscriptionController::class, 'subscribe']);
+            Route::post('/subscriptions/validate-discount', [SubscriptionController::class, 'validateDiscount']);
             Route::get('/subscriptions/check-payment/{invoice}', [SubscriptionController::class, 'checkPayment']);
         });
     });
