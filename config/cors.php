@@ -28,6 +28,8 @@ return [
         'https://jagokasirku.vercel.app',
         'https://jagokasir.store',
         'https://www.jagokasir.store',
+        'https://pos.jagokasir.store',
+        'https://www.pos.jagokasir.store',
         'http://192.168.1.5:5173',
         'http://192.168.137.1:5173',
         'http://100.125.254.53:5173',
