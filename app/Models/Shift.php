@@ -97,6 +97,29 @@ class Shift extends Model
             }
         }
 
+        // Aggregate Product Sales
+        $productSales = \Illuminate\Support\Facades\DB::table('transaction_items')
+            ->join('transactions', 'transaction_items.transaction_id', '=', 'transactions.id')
+            ->where('transactions.shift_id', $this->id)
+            ->whereIn('transactions.status', ['completed', 'paid', 'preparing', 'ready'])
+            ->select(
+                'transaction_items.product_name',
+                \Illuminate\Support\Facades\DB::raw('SUM(transaction_items.quantity) as quantity'),
+                'transaction_items.price',
+                \Illuminate\Support\Facades\DB::raw('SUM(transaction_items.subtotal) as total')
+            )
+            ->groupBy('transaction_items.product_name', 'transaction_items.price')
+            ->get()
+            ->map(function ($item) {
+                return [
+                    'product_name' => $item->product_name,
+                    'quantity'     => (int) $item->quantity,
+                    'price'        => (float) $item->price,
+                    'total'        => (float) $item->total,
+                ];
+            })
+            ->toArray();
+
         $cashIn = (float) $this->cashDrawerLogs()->where('type', 'in')->sum('amount');
         $cashOut = (float) $this->cashDrawerLogs()->where('type', 'out')->sum('amount');
 
@@ -117,18 +140,19 @@ class Shift extends Model
         }
 
         return [
-            'gross_sales' => $grossSales,
-            'refund_total' => $refundTotal,
-            'net_sales' => $netSales,
-            'payment_breakdown' => $paymentBreakdown,
-            'cash_in' => $cashIn,
-            'cash_out' => $cashOut,
-            'expected_cash' => $expectedCash,
-            'actual_cash' => (float) $this->closing_cash,
-            'difference' => $difference,
+            'gross_sales'        => $grossSales,
+            'refund_total'       => $refundTotal,
+            'net_sales'          => $netSales,
+            'payment_breakdown'  => $paymentBreakdown,
+            'cash_in'            => $cashIn,
+            'cash_out'           => $cashOut,
+            'expected_cash'      => $expectedCash,
+            'actual_cash'        => (float) $this->closing_cash,
+            'difference'         => $difference,
             'discrepancy_status' => $discrepancyStatus,
-            'opened_by_name' => $this->openedBy?->name,
-            'closed_by_name' => $this->closedBy?->name,
+            'opened_by_name'     => $this->openedBy?->name,
+            'closed_by_name'     => $this->closedBy?->name,
+            'product_sales'      => $productSales,
         ];
     }
 }
