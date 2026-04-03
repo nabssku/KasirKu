@@ -59,7 +59,7 @@ class TransactionService
 
             foreach ($dto->items as $itemDto) {
                 $product      = Product::findOrFail($itemDto->product_id);
-                $itemSubtotal = $itemDto->price * $itemDto->quantity;
+                $itemSubtotal = ($itemDto->price * $itemDto->quantity) - $itemDto->discount;
                 $subtotal    += $itemSubtotal;
 
                 $itemsData[] = [
@@ -69,7 +69,9 @@ class TransactionService
                     'product_name' => $product->name,
                     'price'        => $itemDto->price,
                     'quantity'     => $itemDto->quantity,
+                    'discount'     => $itemDto->discount,
                     'subtotal'     => $itemSubtotal,
+                    'notes'        => $itemDto->notes,
                     'modifiers'    => $itemDto->modifiers ?? [],
                 ];
 
@@ -212,7 +214,7 @@ class TransactionService
 
             foreach ($dto->items as $itemDto) {
                 $product      = Product::findOrFail($itemDto->product_id);
-                $itemSubtotal = $itemDto->price * $itemDto->quantity;
+                $itemSubtotal = ($itemDto->price * $itemDto->quantity) - $itemDto->discount;
                 $subtotal    += $itemSubtotal;
 
                 $itemsData[] = [
@@ -222,7 +224,9 @@ class TransactionService
                     'product_name' => $product->name,
                     'price'        => $itemDto->price,
                     'quantity'     => $itemDto->quantity,
+                    'discount'     => $itemDto->discount,
                     'subtotal'     => $itemSubtotal,
+                    'notes'        => $itemDto->notes,
                     'modifiers'    => $itemDto->modifiers ?? [],
                 ];
                 

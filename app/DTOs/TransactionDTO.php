@@ -8,6 +8,8 @@ class TransactionItemDTO
         public string $product_id,
         public int $quantity,
         public float $price,
+        public float $discount = 0,
+        public ?string $notes = null,
         public array $modifiers = []
     ) {}
 
@@ -17,6 +19,8 @@ class TransactionItemDTO
             product_id: $data['product_id'],
             quantity: $data['quantity'],
             price: $data['price'],
+            discount: $data['discount'] ?? 0,
+            notes: $data['notes'] ?? null,
             modifiers: $data['modifiers'] ?? []
         );
     }
