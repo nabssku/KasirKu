@@ -16,7 +16,18 @@ class TransactionRepository extends BaseRepository implements TransactionReposit
     public function generateInvoiceNumber(): string
     {
         $prefix = 'INV-' . now()->format('Ymd');
-        $count = $this->model->where('invoice_number', 'like', $prefix . '%')->count();
-        return $prefix . Str::padLeft($count + 1, 4, '0');
+        
+        $lastTransaction = $this->model
+            ->where('invoice_number', 'like', $prefix . '%')
+            ->orderBy('invoice_number', 'desc')
+            ->first();
+
+        if (!$lastTransaction) {
+            return $prefix . '0001';
+        }
+
+        // Get the numeric part of the last invoice number and increment
+        $lastNumber = (int) substr($lastTransaction->invoice_number, strlen($prefix));
+        return $prefix . Str::padLeft($lastNumber + 1, 4, '0');
     }
 }
