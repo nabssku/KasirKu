@@ -23,7 +23,7 @@ class SuperAdminSeeder extends Seeder
 
         // Create super admin user (no tenant, no outlet)
         $user = User::withoutGlobalScopes()->updateOrCreate(
-            ['email' => 'superadmin@kasirku.com'],
+            ['email' => 'superadmin@jagokasir.store'],
             [
                 'name'      => 'Super Admin',
                 'password'  => Hash::make('superadmin123'),
@@ -39,6 +39,6 @@ class SuperAdminSeeder extends Seeder
         }
 
         echo "\n✅ Super Admin seeded — Login with:\n";
-        echo "   superadmin@kasirku.com / superadmin123\n";
+        echo "   superadmin@jagokasir.store / superadmin123\n";
     }
 }

@@ -29,6 +29,16 @@ class Tenant extends Model
         'subscription_ends_at' => 'datetime',
     ];
 
+    public function isOnboardingCompleted(): bool
+    {
+        return (bool) ($this->settings['onboarding_completed'] ?? false);
+    }
+
+    public function getOnboardingStep(): string
+    {
+        return $this->settings['onboarding_step'] ?? 'initial';
+    }
+
     public function users(): HasMany
     {
         return $this->hasMany(User::class);

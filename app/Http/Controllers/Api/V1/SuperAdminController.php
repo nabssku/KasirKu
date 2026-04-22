@@ -230,6 +230,8 @@ class SuperAdminController extends Controller
             'max_categories'   => 'sometimes|integer|min:1',
             'max_ingredients'  => 'sometimes|integer|min:1',
             'max_modifiers'    => 'sometimes|integer|min:1',
+            'max_customers'    => 'sometimes|integer|min:1',
+            'max_tables'       => 'sometimes|integer|min:1',
             'trial_days'       => 'sometimes|integer|min:0',
             'description'      => 'nullable|string',
             'is_active'        => 'boolean',
@@ -271,6 +273,8 @@ class SuperAdminController extends Controller
             'max_categories'   => 'sometimes|integer|min:1',
             'max_ingredients'  => 'sometimes|integer|min:1',
             'max_modifiers'    => 'sometimes|integer|min:1',
+            'max_customers'    => 'sometimes|integer|min:1',
+            'max_tables'       => 'sometimes|integer|min:1',
             'trial_days'       => 'sometimes|integer|min:0',
             'description'      => 'nullable|string',
             'is_active'        => 'boolean',
@@ -479,6 +483,73 @@ class SuperAdminController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Diskon berhasil dihapus.',
+        ]);
+    }
+
+    // ─── Product Templates ────────────────────────────────────────────────────
+
+    public function templates(): JsonResponse
+    {
+        $templates = \App\Models\ProductTemplate::orderByDesc('created_at')->get();
+        return response()->json(['success' => true, 'data' => $templates]);
+    }
+
+    public function storeTemplate(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'name'          => 'required|string|max:255',
+            'category_type' => 'required|string|max:255',
+            'image'         => 'nullable|string',
+            'description'   => 'nullable|string',
+            'is_active'     => 'boolean',
+            'data'          => 'required|array',
+        ]);
+
+        $template = \App\Models\ProductTemplate::create($validated);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Template created successfully.',
+            'data'    => $template,
+        ], 201);
+    }
+
+    public function showTemplate(string $id): JsonResponse
+    {
+        $template = \App\Models\ProductTemplate::findOrFail($id);
+        return response()->json(['success' => true, 'data' => $template]);
+    }
+
+    public function updateTemplate(Request $request, string $id): JsonResponse
+    {
+        $template = \App\Models\ProductTemplate::findOrFail($id);
+
+        $validated = $request->validate([
+            'name'          => 'sometimes|string|max:255',
+            'category_type' => 'sometimes|string|max:255',
+            'image'         => 'nullable|string',
+            'description'   => 'nullable|string',
+            'is_active'     => 'boolean',
+            'data'          => 'sometimes|array',
+        ]);
+
+        $template->update($validated);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Template updated successfully.',
+            'data'    => $template->fresh(),
+        ]);
+    }
+
+    public function destroyTemplate(string $id): JsonResponse
+    {
+        $template = \App\Models\ProductTemplate::findOrFail($id);
+        $template->delete();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Template deleted successfully.',
         ]);
     }
 }

@@ -24,7 +24,7 @@ class DatabaseSeeder extends Seeder
         // 2. Create a Demo Tenant
         $tenant = Tenant::create([
             'name'   => 'Warung Kopi Nusantara',
-            'email'  => 'demo@kasirku.com',
+            'email'  => 'demo@jagokasir.store',
             'status' => 'active',
             'trial_ends_at'        => now()->addDays(14),
             'subscription_ends_at' => now()->addYear(),

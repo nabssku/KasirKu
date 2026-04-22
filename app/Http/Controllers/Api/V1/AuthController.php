@@ -109,7 +109,7 @@ class AuthController extends Controller
     public function me(): JsonResponse
     {
         return response()->json([
-            'data' => auth('api')->user()->load(['roles', 'outlet']),
+            'data' => auth('api')->user()->load(['roles', 'outlet', 'tenant']),
         ]);
     }
 

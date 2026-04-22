@@ -109,6 +109,13 @@ Route::prefix('v1')->group(function () {
         Route::get('/discounts/{id}',           [SuperAdminController::class, 'showDiscount']);
         Route::put('/discounts/{id}',           [SuperAdminController::class, 'updateDiscount']);
         Route::delete('/discounts/{id}',        [SuperAdminController::class, 'destroyDiscount']);
+
+        // ── Product Templates ─────────────────────────────────────────────────
+        Route::get('/templates',                [SuperAdminController::class, 'templates']);
+        Route::post('/templates',               [SuperAdminController::class, 'storeTemplate']);
+        Route::get('/templates/{id}',           [SuperAdminController::class, 'showTemplate']);
+        Route::put('/templates/{id}',           [SuperAdminController::class, 'updateTemplate']);
+        Route::delete('/templates/{id}',        [SuperAdminController::class, 'destroyTemplate']);
     });
 
     // ─── Shared Auth Routes (works for all authenticated users incl. super_admin) ─
@@ -328,6 +335,13 @@ Route::prefix('v1')->group(function () {
         Route::middleware('role:super_admin,owner')->prefix('settings')->group(function () {
             Route::get('/payment', [PaymentSettingController::class, 'getTenantSettings']);
             Route::put('/payment', [PaymentSettingController::class, 'updateTenantSettings']);
+        });
+
+        // ── Onboarding ────────────────────────────────────────────────────────
+        Route::prefix('onboarding')->group(function () {
+            Route::get('/templates',    [\App\Http\Controllers\Api\V1\OnboardingController::class, 'templates']);
+            Route::post('/import',      [\App\Http\Controllers\Api\V1\OnboardingController::class, 'import']);
+            Route::post('/complete',    [\App\Http\Controllers\Api\V1\OnboardingController::class, 'complete']);
         });
     });
 });
