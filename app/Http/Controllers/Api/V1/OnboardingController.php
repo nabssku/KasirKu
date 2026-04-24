@@ -96,7 +96,7 @@ class OnboardingController extends Controller
                                 'category_id' => $category->id,
                                 'name'        => $prodData['name'],
                                 'price'       => $prodData['price'],
-                                'stock'       => $prodData['stock'] ?? 0,
+                                'stock'       => $prodData['stock'] ?? 10,
                                 'is_active'   => true,
                             ]);
 

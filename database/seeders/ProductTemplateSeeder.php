@@ -25,6 +25,7 @@ class ProductTemplateSeeder extends Seeder
                                 [
                                     'name' => 'Americano',
                                     'price' => 15000,
+                                    'stock' => 10,
                                     'modifier_groups' => [
                                         [
                                             'name' => 'Level Gula',
@@ -45,23 +46,23 @@ class ProductTemplateSeeder extends Seeder
                                         ]
                                     ]
                                 ],
-                                ['name' => 'Cafe Latte', 'price' => 20000],
-                                ['name' => 'Cappuccino', 'price' => 20000],
+                                ['name' => 'Cafe Latte', 'price' => 20000, 'stock' => 10],
+                                ['name' => 'Cappuccino', 'price' => 20000, 'stock' => 10],
                             ]
                         ],
                         [
                             'name' => 'Non-Coffee',
                             'products' => [
-                                ['name' => 'Matcha Latte', 'price' => 22000],
-                                ['name' => 'Chocolate', 'price' => 18000],
-                                ['name' => 'Thai Tea', 'price' => 15000],
+                                ['name' => 'Matcha Latte', 'price' => 22000, 'stock' => 10],
+                                ['name' => 'Chocolate', 'price' => 18000, 'stock' => 10],
+                                ['name' => 'Thai Tea', 'price' => 15000, 'stock' => 10],
                             ]
                         ],
                         [
                             'name' => 'Snacks',
                             'products' => [
-                                ['name' => 'French Fries', 'price' => 12000],
-                                ['name' => 'Croissant', 'price' => 15000],
+                                ['name' => 'French Fries', 'price' => 12000, 'stock' => 10],
+                                ['name' => 'Croissant', 'price' => 15000, 'stock' => 10],
                             ]
                         ]
                     ]
@@ -76,17 +77,17 @@ class ProductTemplateSeeder extends Seeder
                         [
                             'name' => 'Makanan Utama',
                             'products' => [
-                                ['name' => 'Nasi Goreng Ayam', 'price' => 15000],
-                                ['name' => 'Mie Goreng Spesial', 'price' => 18000],
-                                ['name' => 'Ayam Bakar Madu', 'price' => 20000],
+                                ['name' => 'Nasi Goreng Ayam', 'price' => 15000, 'stock' => 10],
+                                ['name' => 'Mie Goreng Spesial', 'price' => 18000, 'stock' => 10],
+                                ['name' => 'Ayam Bakar Madu', 'price' => 20000, 'stock' => 10],
                             ]
                         ],
                         [
                             'name' => 'Minuman',
                             'products' => [
-                                ['name' => 'Es Teh Manis', 'price' => 5000],
-                                ['name' => 'Es Jeruk', 'price' => 7000],
-                                ['name' => 'Kopi Hitam', 'price' => 5000],
+                                ['name' => 'Es Teh Manis', 'price' => 5000, 'stock' => 10],
+                                ['name' => 'Es Jeruk', 'price' => 7000, 'stock' => 10],
+                                ['name' => 'Kopi Hitam', 'price' => 5000, 'stock' => 10],
                             ]
                         ]
                     ]
@@ -104,6 +105,7 @@ class ProductTemplateSeeder extends Seeder
                                 [
                                     'name' => 'Kaos Polos Cotton Combed',
                                     'price' => 50000,
+                                    'stock' => 10,
                                     'modifier_groups' => [
                                         [
                                             'name' => 'Ukuran',
@@ -119,14 +121,14 @@ class ProductTemplateSeeder extends Seeder
                                         ]
                                     ]
                                 ],
-                                ['name' => 'Kemeja Flanel', 'price' => 120000],
+                                ['name' => 'Kemeja Flanel', 'price' => 120000, 'stock' => 10],
                             ]
                         ],
                         [
                             'name' => 'Bawahan',
                             'products' => [
-                                ['name' => 'Celana Jeans Slim Fit', 'price' => 150000],
-                                ['name' => 'Celana Chino', 'price' => 135000],
+                                ['name' => 'Celana Jeans Slim Fit', 'price' => 150000, 'stock' => 10],
+                                ['name' => 'Celana Chino', 'price' => 135000, 'stock' => 10],
                             ]
                         ]
                     ]
@@ -144,6 +146,7 @@ class ProductTemplateSeeder extends Seeder
                                 [
                                     'name' => 'Sepatu Lari Ultraboost',
                                     'price' => 250000,
+                                    'stock' => 10,
                                     'modifier_groups' => [
                                         [
                                             'name' => 'Size (EU)',
@@ -165,8 +168,8 @@ class ProductTemplateSeeder extends Seeder
                         [
                             'name' => 'Casual',
                             'products' => [
-                                ['name' => 'Sneakers Canvas', 'price' => 120000],
-                                ['name' => 'Slip-on Shoes', 'price' => 95000],
+                                ['name' => 'Sneakers Canvas', 'price' => 120000, 'stock' => 10],
+                                ['name' => 'Slip-on Shoes', 'price' => 95000, 'stock' => 10],
                             ]
                         ]
                     ]
@@ -175,7 +178,10 @@ class ProductTemplateSeeder extends Seeder
         ];
 
         foreach ($templates as $template) {
-            ProductTemplate::create($template);
+            ProductTemplate::updateOrCreate(
+                ['name' => $template['name']],
+                $template
+            );
         }
     }
 }
