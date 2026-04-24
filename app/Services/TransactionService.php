@@ -99,7 +99,7 @@ class TransactionService
                 'customer_id'    => $dto->customer_id,
                 'table_id'       => $dto->table_id,
                 'shift_id'       => $shiftId,
-                'invoice_number' => $this->repository->generateInvoiceNumber(),
+                'invoice_number' => $this->repository->generateInvoiceNumber($user->outlet_id),
                 'type'           => $dto->type ?? 'dine_in',
                 'subtotal'       => $subtotal,
                 'tax_rate'       => $taxRate,

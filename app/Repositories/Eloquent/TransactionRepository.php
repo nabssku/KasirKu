@@ -13,11 +13,12 @@ class TransactionRepository extends BaseRepository implements TransactionReposit
         parent::__construct($model);
     }
 
-    public function generateInvoiceNumber(): string
+    public function generateInvoiceNumber(string $outletId): string
     {
-        $prefix = 'INV-' . now()->format('Ymd');
+        $shortOutlet = strtoupper(substr($outletId, -4));
+        $prefix = 'INV-' . $shortOutlet . '-' . now()->format('Ymd');
         
-        $lastTransaction = $this->model
+        $lastTransaction = $this->model->withoutGlobalScopes()
             ->where('invoice_number', 'like', $prefix . '%')
             ->orderBy('invoice_number', 'desc')
             ->first();

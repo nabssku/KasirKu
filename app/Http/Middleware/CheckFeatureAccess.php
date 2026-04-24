@@ -34,6 +34,11 @@ class CheckFeatureAccess
             ->latest()
             ->first();
 
+        // Exempt specific dashboard routes from blocking 403 when subscription is missing
+        if ($request->is('api/v1/reports/daily') || $request->is('api/v1/reports/top-products')) {
+            return $next($request);
+        }
+
         if (!$subscription || !$subscription->plan) {
             return response()->json([
                 'success' => false,

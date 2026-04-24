@@ -27,8 +27,14 @@ class CheckSubscription
         }
 
         if (Gate::denies('has-active-subscription')) {
+            // Avoid blocking dashboard stats with 403 to prevent intrusive toast loops.
+            // These will return data if it exists, but usually features are locked elsewhere.
+            if ($request->is('api/v1/reports/daily') || $request->is('api/v1/reports/top-products')) {
+                return $next($request);
+            }
+
             return response()->json([
-                'message' => 'Your subscription has expired. Please renew to continue using the system.',
+                'message' => 'Anda tidak memiliki langganan aktif. Silakan berlangganan untuk mengakses fitur ini.',
             ], 403);
         }
 

@@ -6,5 +6,5 @@ use App\Models\Transaction;
 
 interface TransactionRepositoryInterface extends RepositoryInterface
 {
-    public function generateInvoiceNumber(): string;
+    public function generateInvoiceNumber(string $outletId): string;
 }

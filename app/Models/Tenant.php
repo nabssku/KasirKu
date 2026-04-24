@@ -29,6 +29,24 @@ class Tenant extends Model
         'subscription_ends_at' => 'datetime',
     ];
 
+    protected $appends = ['status_subscription', 'status_subcription', 'plan_id'];
+
+    public function getStatusSubscriptionAttribute(): string
+    {
+        // Try to get status from latest subscription, fallback to tenant status
+        return $this->latestSubscription?->status ?? $this->status;
+    }
+
+    public function getStatusSubcriptionAttribute(): string
+    {
+        return $this->getStatusSubscriptionAttribute();
+    }
+
+    public function getPlanIdAttribute()
+    {
+        return $this->latestSubscription?->plan_id;
+    }
+
     public function isOnboardingCompleted(): bool
     {
         return (bool) ($this->settings['onboarding_completed'] ?? false);
@@ -56,6 +74,11 @@ class Tenant extends Model
 
     public function subscription(): HasOne
     {
-        return $this->hasOne(Subscription::class)->where('status', 'active');
+        return $this->hasOne(Subscription::class)->whereIn('status', ['active', 'trial']);
+    }
+
+    public function latestSubscription(): HasOne
+    {
+        return $this->hasOne(Subscription::class)->latestOfMany();
     }
 }
