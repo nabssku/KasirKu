@@ -25,6 +25,9 @@ use App\Http\Controllers\Api\V1\TableQrController;
 use App\Http\Controllers\Api\V1\PaymentSettingController;
 use App\Http\Controllers\Api\V1\WebhookController;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\Broadcast;
+
+Broadcast::routes(['middleware' => ['auth:api']]);
 
 /*
 |--------------------------------------------------------------------------
@@ -38,6 +41,7 @@ Route::prefix('v1')->group(function () {
     // ─── Public Auth Routes ───────────────────────────────────────────────────
     Route::post('/auth/register', [AuthController::class, 'register']);
     Route::post('/auth/login',    [AuthController::class, 'login']);
+    Route::post('/auth/login-pin', [AuthController::class, 'loginPin']);
     Route::post('/auth/refresh',  [AuthController::class, 'refresh']);
     Route::post('/auth/otp/send',   [AuthController::class, 'sendOtp']);
     Route::post('/auth/otp/verify', [AuthController::class, 'verifyOtp']);
@@ -56,6 +60,26 @@ Route::prefix('v1')->group(function () {
         Route::post('/self-order',                 [SelfOrderController::class, 'submitOrder']);
         Route::get('/self-order/{sessionToken}/status', [SelfOrderController::class, 'orderStatus']);
         Route::get('/self-order/{sessionToken}/receipt', [SelfOrderController::class, 'publicReceipt']);
+    });
+
+    // ─── PIN Login Public Staff List ─────────────────────────────────────────
+    Route::get('/public/tenants/{tenant_id}/staff', function($tenantId) {
+        $users = \App\Models\User::where('tenant_id', $tenantId)
+            ->where('pin_enabled', true)
+            ->where('is_active', true)
+            ->with(['roles' => fn($q) => $q->select('slug')])
+            ->get(['id', 'name', 'image', 'email']); 
+
+        return response()->json([
+            'success' => true,
+            'data' => $users->map(fn($u) => [
+                'id' => $u->id,
+                'name' => $u->name,
+                'image' => $u->image,
+                'email' => $u->email,
+                'role' => $u->roles->first()?->slug
+            ])
+        ]);
     });
 
     // ─── Subscription Plans (public) ──────────────────────────────────────────
@@ -154,6 +178,7 @@ Route::prefix('v1')->group(function () {
             Route::post('/',          [UserManagementController::class, 'store'])->middleware('plan.limit:users,max_users');
             Route::get('/{id}',       [UserManagementController::class, 'show']);
             Route::put('/{id}',       [UserManagementController::class, 'update']);
+            Route::put('/{id}/pin',   [UserManagementController::class, 'updatePin']);
             Route::delete('/{id}',    [UserManagementController::class, 'destroy']);
         });
 

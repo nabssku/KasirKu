@@ -77,6 +77,9 @@ class TicketController extends Controller
                 'message'   => $validated['message'],
             ]);
 
+            $ticket = $ticket->load(['user', 'tenant']);
+            event(new \App\Events\TicketUpdated($ticket, 'created'));
+
             return response()->json([
                 'success' => true,
                 'message' => 'Ticket created successfully.',
@@ -136,6 +139,9 @@ class TicketController extends Controller
         ]);
 
         $ticket->update($validated);
+
+        // Broadcast update
+        event(new \App\Events\TicketUpdated($ticket, 'updated'));
 
         return response()->json([
             'success' => true,

@@ -97,6 +97,27 @@ class AuthController extends Controller
         ]);
     }
 
+    public function loginPin(\Illuminate\Http\Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'email' => 'required|email',
+            'pin' => 'required|string',
+        ]);
+
+        $result = $this->authService->loginWithPin($validated);
+
+        if (!$result) {
+            return response()->json([
+                'message' => 'Invalid PIN or credentials.',
+            ], 401);
+        }
+
+        return response()->json([
+            'message' => 'Login successful.',
+            'data' => $result,
+        ]);
+    }
+
     public function logout(): JsonResponse
     {
         $this->authService->logout();

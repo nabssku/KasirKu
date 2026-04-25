@@ -100,6 +100,27 @@ class UserManagementController extends Controller
         return response()->json(['success' => true, 'data' => $user->load(['roles', 'outlet'])]);
     }
 
+    public function updatePin(Request $request, string $id): JsonResponse
+    {
+        $user = User::findOrFail($id);
+
+        $validated = $request->validate([
+            'pin' => ['nullable', 'string', 'min:4', 'max:10'],
+            'pin_enabled' => ['required', 'boolean'],
+        ]);
+
+        $user->update([
+            'pin' => $validated['pin'] ? Hash::make($validated['pin']) : $user->pin,
+            'pin_enabled' => $validated['pin_enabled'],
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'User PIN updated successfully.',
+            'data' => $user->load(['roles', 'outlet']),
+        ]);
+    }
+
     public function destroy(string $id): JsonResponse
     {
         $user = User::findOrFail($id);

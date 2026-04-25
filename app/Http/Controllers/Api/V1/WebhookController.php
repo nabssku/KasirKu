@@ -41,6 +41,7 @@ class WebhookController extends Controller
             $this->selfOrderService->syncPaymentStatus($paymentTx->invoice_id);
         }
 
+        event(new \App\Events\PlatformStatsUpdated());
         return response()->json(['success' => true]);
     }
 
@@ -67,6 +68,7 @@ class WebhookController extends Controller
             $this->selfOrderService->syncPaymentStatus($paymentTx->invoice_id);
         }
 
+        event(new \App\Events\PlatformStatsUpdated());
         return response()->json(['success' => true]);
     }
 }

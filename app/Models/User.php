@@ -27,10 +27,13 @@ class User extends Authenticatable implements JWTSubject
         'password',
         'image',
         'is_active',
+        'pin',
+        'pin_enabled',
     ];
 
     protected $hidden = [
         'password',
+        'pin',
         'remember_token',
     ];
 
@@ -40,6 +43,8 @@ class User extends Authenticatable implements JWTSubject
             'email_verified_at' => 'datetime',
             'password'          => 'hashed',
             'is_active'         => 'boolean',
+            'pin_enabled'       => 'boolean',
+            'pin'               => 'hashed',
         ];
     }
 

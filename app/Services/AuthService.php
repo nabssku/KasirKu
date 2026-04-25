@@ -30,6 +30,23 @@ class AuthService
         return $this->respondWithToken($token);
     }
 
+    public function loginWithPin(array $data): ?array
+    {
+        $user = User::where('email', $data['email'])->first();
+
+        if (!$user || !$user->pin_enabled || !Hash::check($data['pin'], $user->pin)) {
+            return null;
+        }
+
+        if (!$user->is_active) {
+            return null;
+        }
+
+        $token = auth('api')->login($user);
+
+        return $this->respondWithToken($token);
+    }
+
     public function logout(): void
     {
         auth('api')->logout();

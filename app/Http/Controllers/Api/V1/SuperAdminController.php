@@ -104,6 +104,8 @@ class SuperAdminController extends Controller
 
         $tenant->update($validated);
 
+        event(new \App\Events\PlatformStatsUpdated());
+
         return response()->json([
             'success' => true,
             'message' => 'Tenant updated successfully.',
@@ -115,6 +117,8 @@ class SuperAdminController extends Controller
     {
         $tenant = Tenant::withoutGlobalScopes()->findOrFail($id);
         $tenant->delete();
+
+        event(new \App\Events\PlatformStatsUpdated());
 
         return response()->json([
             'success' => true,
@@ -200,6 +204,8 @@ class SuperAdminController extends Controller
                 'subscription_ends_at' => $validated['ends_at'],
             ]);
         }
+
+        event(new \App\Events\PlatformStatsUpdated());
 
         return response()->json([
             'success' => true,

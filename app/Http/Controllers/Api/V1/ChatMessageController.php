@@ -57,6 +57,12 @@ class ChatMessageController extends Controller
             $ticket->update(['status' => 'open']);
         }
 
+        // Broadcast the message
+        event(new \App\Events\MessageSent($message));
+        
+        // Also broadcast ticket update for the list
+        event(new \App\Events\TicketUpdated($ticket, 'message'));
+
         return response()->json([
             'success' => true,
             'message' => 'Message sent.',
