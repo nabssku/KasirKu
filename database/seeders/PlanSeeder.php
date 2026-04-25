@@ -31,6 +31,10 @@ class PlanSeeder extends Seeder
                     'advanced_reports'   => 'false',
                     'audit_log'          => 'false',
                     'shift_management'   => 'true',
+                    'qr_self_order'      => 'false',
+                    'max_qr_tables'      => '0',
+                    'api_access'         => 'false',
+                    'white_label'        => 'false',
                 ],
             ],
             [
@@ -53,6 +57,10 @@ class PlanSeeder extends Seeder
                     'advanced_reports'   => 'true',
                     'audit_log'          => 'false',
                     'shift_management'   => 'true',
+                    'qr_self_order'      => 'true',
+                    'max_qr_tables'      => '10',
+                    'api_access'         => 'false',
+                    'white_label'        => 'false',
                 ],
             ],
             [
@@ -77,6 +85,8 @@ class PlanSeeder extends Seeder
                     'shift_management'   => 'true',
                     'api_access'         => 'true',
                     'white_label'        => 'true',
+                    'qr_self_order'      => 'true',
+                    'max_qr_tables'      => '50',
                 ],
             ],
         ];

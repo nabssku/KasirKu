@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
 use App\Models\Outlet;
+use App\Models\Subscription;
 use App\Services\OutletService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -71,8 +72,37 @@ class OutletController extends Controller
         
         $settings = $validated['receipt_settings'] ?? $outlet->receipt_settings ?? [];
         
-        // Handle logo upload
-        if ($request->hasFile('logo')) {
+        // --- Feature Check: Receipt Customization (Pro) ---
+        $user = auth()->user();
+        $subscription = Subscription::with('plan.features')
+            ->where('tenant_id', $user->tenant_id)
+            ->where(function ($q) {
+                $q->where('status', 'trial')->where('trial_ends_at', '>=', now())
+                  ->orWhere(fn ($q2) => $q2->where('status', 'active')->where('ends_at', '>=', now()));
+            })
+            ->latest()
+            ->first();
+
+        $hasWhiteLabel = $subscription?->plan?->hasFeature('white_label') ?? false;
+
+        if (!$hasWhiteLabel) {
+            // Discard logo if sent
+            unset($validated['logo']);
+            
+            // Revert/Reset Pro settings to default if they were attempted to be changed
+            // We only allow store_name, header_text, and footer_text for basic plans
+            $settings['font_size']   = 'medium';
+            $settings['alignment']   = 'center';
+            $settings['paper_width'] = 32;
+            $settings['logo_width']  = 80;
+            
+            // Ensure no logo_url remains if not pro (optional: might want to keep existing if they once had pro, 
+            // but usually we hide it)
+            unset($settings['logo_url']);
+        }
+
+        // Handle logo upload (only if pro)
+        if ($hasWhiteLabel && $request->hasFile('logo')) {
             // Delete old logo if exists
             if (isset($outlet->receipt_settings['logo_url'])) {
                 $oldPath = str_replace(Storage::disk('public')->url(''), '', $outlet->receipt_settings['logo_url']);

@@ -33,7 +33,7 @@ class AuditLogController extends Controller
 
         $hasPlanAccess = false;
         if ($activeSubscription && $activeSubscription->plan) {
-            $hasPlanAccess = $activeSubscription->plan->hasFeature('audit_logs');
+            $hasPlanAccess = $activeSubscription->plan->hasFeature('audit_log');
         }
 
         // If no plan access, we still return success:true but with a specific flag
