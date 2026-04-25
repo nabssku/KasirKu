@@ -34,6 +34,7 @@ class SuperAdminController extends Controller
 
         $totalOrders = PaymentTransaction::withoutGlobalScopes()->count();
         $pendingOrders = PaymentTransaction::withoutGlobalScopes()->where('status', 'pending')->count();
+        $totalPlans    = Plan::count();
 
         $recentTenants = Tenant::withoutGlobalScopes()
             ->orderByDesc('created_at')
@@ -51,6 +52,7 @@ class SuperAdminController extends Controller
                 'total_paid_revenue'   => (float) $totalPaidRevenue,
                 'total_orders'         => $totalOrders,
                 'pending_orders'       => $pendingOrders,
+                'total_plans'          => $totalPlans,
                 'recent_tenants'       => $recentTenants,
             ],
         ]);
@@ -556,6 +558,63 @@ class SuperAdminController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Template deleted successfully.',
+        ]);
+    }
+
+    // ─── Payment Methods Management ──────────────────────────────────────────
+
+    public function indexPaymentMethods(): JsonResponse
+    {
+        $methods = \App\Models\PaymentMethod::all();
+        return response()->json(['success' => true, 'data' => $methods]);
+    }
+
+    public function storePaymentMethod(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'name'      => 'required|string|max:255',
+            'code'      => 'required|string|max:50|unique:payment_methods,code',
+            'category'  => 'required|in:cash,e-wallet,bank_transfer,card,other',
+            'is_active' => 'boolean',
+        ]);
+
+        $method = \App\Models\PaymentMethod::create($validated);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Metode pembayaran berhasil dibuat.',
+            'data'    => $method,
+        ], 201);
+    }
+
+    public function updatePaymentMethod(Request $request, string $id): JsonResponse
+    {
+        $method = \App\Models\PaymentMethod::findOrFail($id);
+
+        $validated = $request->validate([
+            'name'      => 'sometimes|string|max:255',
+            'code'      => 'sometimes|string|max:50|unique:payment_methods,code,' . $id,
+            'category'  => 'sometimes|in:cash,e-wallet,bank_transfer,card,other',
+            'is_active' => 'boolean',
+        ]);
+
+        $method->update($validated);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Metode pembayaran berhasil diperbarui.',
+            'data'    => $method->fresh(),
+        ]);
+    }
+
+    public function destroyPaymentMethod(string $id): JsonResponse
+    {
+        $method = \App\Models\PaymentMethod::findOrFail($id);
+        $method->delete();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Metode pembayaran berhasil dihapus.',
         ]);
     }
 }

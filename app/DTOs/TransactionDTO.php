@@ -38,6 +38,7 @@ class TransactionDTO
         public float $discount = 0,
         public float $paid_amount = 0,
         public string $payment_method = 'cash',
+        public ?string $payment_method_name = null,
         public ?string $notes = null,
         public array $payments = [],
         public string $status = 'completed'
@@ -56,6 +57,7 @@ class TransactionDTO
             discount: $data['discount'] ?? 0,
             paid_amount: $data['paid_amount'] ?? 0,
             payment_method: $data['payment_method'] ?? 'cash',
+            payment_method_name: $data['payment_method_name'] ?? null,
             notes: $data['notes'] ?? null,
             payments: $data['payments'] ?? [],
             status: $data['status'] ?? 'completed'

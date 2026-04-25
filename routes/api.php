@@ -140,6 +140,12 @@ Route::prefix('v1')->group(function () {
         Route::get('/templates/{id}',           [SuperAdminController::class, 'showTemplate']);
         Route::put('/templates/{id}',           [SuperAdminController::class, 'updateTemplate']);
         Route::delete('/templates/{id}',        [SuperAdminController::class, 'destroyTemplate']);
+
+        // ── Payment Methods Management ────────────────────────────────────────
+        Route::get('/payment-methods',          [SuperAdminController::class, 'indexPaymentMethods']);
+        Route::post('/payment-methods',         [SuperAdminController::class, 'storePaymentMethod']);
+        Route::put('/payment-methods/{id}',     [SuperAdminController::class, 'updatePaymentMethod']);
+        Route::delete('/payment-methods/{id}',  [SuperAdminController::class, 'destroyPaymentMethod']);
     });
 
     // ─── Shared Auth Routes (works for all authenticated users incl. super_admin) ─
@@ -170,7 +176,15 @@ Route::prefix('v1')->group(function () {
         Route::apiResource('outlets', OutletController::class)->only(['index', 'show']);
         Route::middleware('role:super_admin,owner,admin,cashier')->group(function () {
             Route::apiResource('outlets', OutletController::class)->except(['index', 'show']);
+            
+            // Payment methods configuration for outlet
+            Route::get('/outlets/{outlet}/payment-methods', [\App\Http\Controllers\Api\V1\OutletPaymentMethodController::class, 'index']);
+            Route::put('/outlets/{outlet}/payment-methods', [\App\Http\Controllers\Api\V1\OutletPaymentMethodController::class, 'update']);
+            Route::post('/outlets/{outlet}/payment-methods/custom', [\App\Http\Controllers\Api\V1\OutletPaymentMethodController::class, 'storeCustom']);
         });
+        // Endpoint for POS to fetch active payment methods for the outlet
+        Route::get('/outlets/{outlet}/active-payment-methods', [\App\Http\Controllers\Api\V1\OutletPaymentMethodController::class, 'enabled']);
+
 
         // ── User Management (Owner / Admin) ───────────────────────────────────
         Route::middleware('role:super_admin,owner,admin,cashier')->prefix('users')->group(function () {
@@ -318,6 +332,7 @@ Route::prefix('v1')->group(function () {
             Route::get('/by-outlet',    [ReportController::class, 'byOutlet']);
             Route::get('/dead-stock',   [ReportController::class, 'deadStock']);
             Route::get('/income',       [ReportController::class, 'income']);
+            Route::get('/income/transactions', [ReportController::class, 'transactionsByDate']);
             Route::get('/expense',      [ReportController::class, 'expense']);
             Route::get('/profit-loss',  [ReportController::class, 'profitLossSummary']);
             

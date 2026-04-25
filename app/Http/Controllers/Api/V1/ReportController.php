@@ -133,6 +133,15 @@ class ReportController extends Controller
         return response()->json(['success' => true, 'data' => $data]);
     }
 
+    public function transactionsByDate(Request $request): JsonResponse
+    {
+        $date     = $request->query('date', now()->format('Y-m-d'));
+        $outletId = $this->resolveOutletId($request);
+        $data     = $this->reportService->getTransactionsByDate($date, $outletId);
+
+        return response()->json(['success' => true, 'data' => $data]);
+    }
+
     public function exportIncome(Request $request)
     {
         $startDate = $request->query('start_date', now()->startOfMonth()->format('Y-m-d'));

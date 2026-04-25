@@ -35,6 +35,7 @@ class PlanSeeder extends Seeder
                     'max_qr_tables'      => '0',
                     'api_access'         => 'false',
                     'white_label'        => 'false',
+                    'max_payment_methods'=> '2',
                 ],
             ],
             [
@@ -61,6 +62,7 @@ class PlanSeeder extends Seeder
                     'max_qr_tables'      => '10',
                     'api_access'         => 'false',
                     'white_label'        => 'false',
+                    'max_payment_methods'=> '10',
                 ],
             ],
             [
@@ -87,6 +89,7 @@ class PlanSeeder extends Seeder
                     'white_label'        => 'true',
                     'qr_self_order'      => 'true',
                     'max_qr_tables'      => '50',
+                    'max_payment_methods'=> '99',
                 ],
             ],
         ];

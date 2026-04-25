@@ -77,22 +77,32 @@ class Shift extends Model
         $grossSales = 0;
         $refundTotal = 0;
         $paymentBreakdown = [];
+        $cashSalesNet = 0;
 
         foreach ($transactions as $tx) {
-            // Count completed OR paid (self-order successful payments)
             $isPaid = in_array($tx->status, ['completed', 'paid', 'preparing', 'ready']);
 
             if ($isPaid) {
                 $grossSales += (float) $tx->grand_total;
                 foreach ($tx->payments as $payment) {
                     $method = $payment->payment_method;
-                    $paymentBreakdown[$method] = ($paymentBreakdown[$method] ?? 0) + (float) $payment->amount;
+                    $label = $payment->payment_method_name ?? $method;
+                    $paymentBreakdown[$label] = ($paymentBreakdown[$label] ?? 0) + (float) $payment->amount;
+                    
+                    if ($method === 'cash') {
+                        $cashSalesNet += (float) $payment->amount;
+                    }
                 }
             } elseif ($tx->status === 'refunded') {
                 $refundTotal += (float) $tx->grand_total;
                 foreach ($tx->payments as $payment) {
                     $method = $payment->payment_method;
-                    $paymentBreakdown[$method] = ($paymentBreakdown[$method] ?? 0) - (float) $payment->amount;
+                    $label = $payment->payment_method_name ?? $method;
+                    $paymentBreakdown[$label] = ($paymentBreakdown[$label] ?? 0) - (float) $payment->amount;
+
+                    if ($method === 'cash') {
+                        $cashSalesNet -= (float) $payment->amount;
+                    }
                 }
             }
         }
@@ -124,7 +134,6 @@ class Shift extends Model
         $cashOut = (float) $this->cashDrawerLogs()->where('type', 'out')->sum('amount');
 
         $netSales = $grossSales - $refundTotal;
-        $cashSalesNet = $paymentBreakdown['cash'] ?? 0;
         
         // expectedCash = Opening + Net Cash Sales + Manual Cash In - (Manual Cash Out + Expenses + Refunds)
         // Note: cashOut log handled by ShiftService/ExpenseService should include all physical cash withdrawals (including refunds)

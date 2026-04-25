@@ -16,9 +16,18 @@ class ReportService
         return auth()->user()->tenant_id;
     }
 
+    private function timezone(): string
+    {
+        return 'Asia/Jakarta';
+    }
+
     public function getDailySales(string $date, ?string $outletId = null): array
     {
-        $transactions = Transaction::whereDate('created_at', $date)
+        $timezone = $this->timezone();
+        $start = \Carbon\Carbon::createFromFormat('Y-m-d', $date, $timezone)->startOfDay()->setTimezone('UTC');
+        $end = \Carbon\Carbon::createFromFormat('Y-m-d', $date, $timezone)->endOfDay()->setTimezone('UTC');
+
+        $transactions = Transaction::whereBetween('created_at', [$start, $end])
             ->where('status', 'completed')
             ->when($outletId, fn ($q) => $q->where('outlet_id', $outletId))
             ->get();
@@ -34,17 +43,24 @@ class ReportService
 
     public function getMonthlyRevenue(int $year, int $month, ?string $outletId = null): array
     {
-        $sales = Transaction::whereYear('created_at', $year)
-            ->whereMonth('created_at', $month)
+        $timezone = $this->timezone();
+        $start = \Carbon\Carbon::createFromDate($year, $month, 1, $timezone)->startOfMonth()->setTimezone('UTC');
+        $end = \Carbon\Carbon::createFromDate($year, $month, 1, $timezone)->endOfMonth()->setTimezone('UTC');
+
+        $transactions = Transaction::whereBetween('created_at', [$start, $end])
             ->where('status', 'completed')
             ->when($outletId, fn ($q) => $q->where('outlet_id', $outletId))
-            ->select(
-                DB::raw('DATE(created_at) as date'),
-                DB::raw('SUM(grand_total) as revenue'),
-                DB::raw('COUNT(id) as transaction_count')
-            )
-            ->groupBy('date')
             ->get();
+
+        $sales = $transactions->groupBy(function ($item) use ($timezone) {
+            return $item->created_at->setTimezone($timezone)->format('Y-m-d');
+        })->map(function ($items, $date) {
+            return [
+                'date' => $date,
+                'revenue' => (float) $items->sum('grand_total'),
+                'transaction_count' => $items->count()
+            ];
+        })->values();
 
         return [
             'year'            => $year,
@@ -110,10 +126,14 @@ class ReportService
      */
     public function getProfitReport(string $startDate, string $endDate, ?string $outletId = null): array
     {
+        $timezone = $this->timezone();
+        $startUtc = \Carbon\Carbon::createFromFormat('Y-m-d', $startDate, $timezone)->startOfDay()->setTimezone('UTC');
+        $endUtc = \Carbon\Carbon::createFromFormat('Y-m-d', $endDate, $timezone)->endOfDay()->setTimezone('UTC');
+
         $query = Transaction::join('transaction_items', 'transactions.id', '=', 'transaction_items.transaction_id')
             ->join('products', 'transaction_items.product_id', '=', 'products.id')
             ->where('transactions.status', 'completed')
-            ->whereBetween('transactions.created_at', [$startDate . ' 00:00:00', $endDate . ' 23:59:59'])
+            ->whereBetween('transactions.created_at', [$startUtc, $endUtc])
             ->when($outletId, fn ($q) => $q->where('transactions.outlet_id', $outletId))
             ->select(
                 DB::raw('SUM(transaction_items.subtotal) as total_revenue'),
@@ -126,7 +146,7 @@ class ReportService
         $productBreakdown = Transaction::join('transaction_items', 'transactions.id', '=', 'transaction_items.transaction_id')
             ->join('products', 'transaction_items.product_id', '=', 'products.id')
             ->where('transactions.status', 'completed')
-            ->whereBetween('transactions.created_at', [$startDate . ' 00:00:00', $endDate . ' 23:59:59'])
+            ->whereBetween('transactions.created_at', [$startUtc, $endUtc])
             ->when($outletId, fn ($q) => $q->where('transactions.outlet_id', $outletId))
             ->select(
                 'transaction_items.product_name',
@@ -154,9 +174,13 @@ class ReportService
      */
     public function getSalesByStaff(string $startDate, string $endDate, ?string $outletId = null): Collection
     {
+        $timezone = $this->timezone();
+        $startUtc = \Carbon\Carbon::createFromFormat('Y-m-d', $startDate, $timezone)->startOfDay()->setTimezone('UTC');
+        $endUtc = \Carbon\Carbon::createFromFormat('Y-m-d', $endDate, $timezone)->endOfDay()->setTimezone('UTC');
+
         return Transaction::join('users', 'transactions.user_id', '=', 'users.id')
             ->where('transactions.status', 'completed')
-            ->whereBetween('transactions.created_at', [$startDate . ' 00:00:00', $endDate . ' 23:59:59'])
+            ->whereBetween('transactions.created_at', [$startUtc, $endUtc])
             ->when($outletId, fn ($q) => $q->where('transactions.outlet_id', $outletId))
             ->select(
                 'users.id as user_id',
@@ -175,9 +199,13 @@ class ReportService
      */
     public function getSalesByOutlet(string $startDate, string $endDate, ?string $outletId = null): Collection
     {
+        $timezone = $this->timezone();
+        $startUtc = \Carbon\Carbon::createFromFormat('Y-m-d', $startDate, $timezone)->startOfDay()->setTimezone('UTC');
+        $endUtc = \Carbon\Carbon::createFromFormat('Y-m-d', $endDate, $timezone)->endOfDay()->setTimezone('UTC');
+
         return Transaction::join('outlets', 'transactions.outlet_id', '=', 'outlets.id')
             ->where('transactions.status', 'completed')
-            ->whereBetween('transactions.created_at', [$startDate . ' 00:00:00', $endDate . ' 23:59:59'])
+            ->whereBetween('transactions.created_at', [$startUtc, $endUtc])
             ->when($outletId, fn ($q) => $q->where('outlets.id', $outletId))
             ->select(
                 'outlets.id as outlet_id',
@@ -219,14 +247,18 @@ class ReportService
 
     public function getIncomeReport(string $startDate, string $endDate, ?string $outletId = null): array
     {
+        $timezone = $this->timezone();
+        $startUtc = \Carbon\Carbon::createFromFormat('Y-m-d', $startDate, $timezone)->startOfDay()->setTimezone('UTC');
+        $endUtc = \Carbon\Carbon::createFromFormat('Y-m-d', $endDate, $timezone)->endOfDay()->setTimezone('UTC');
+
         $transactions = Transaction::with(['items'])
             ->where('status', 'completed')
-            ->whereBetween('created_at', [$startDate . ' 00:00:00', $endDate . ' 23:59:59'])
+            ->whereBetween('created_at', [$startUtc, $endUtc])
             ->when($outletId, fn($q) => $q->where('outlet_id', $outletId))
             ->get();
 
-        $grouped = $transactions->groupBy(function ($item) {
-            return $item->created_at->format('Y-m-d');
+        $grouped = $transactions->groupBy(function ($item) use ($timezone) {
+            return $item->created_at->setTimezone($timezone)->format('Y-m-d');
         });
 
         $reportData = [];
@@ -265,6 +297,10 @@ class ReportService
 
     public function getExpenseReport(string $startDate, string $endDate, ?string $outletId = null): array
     {
+        $timezone = $this->timezone();
+        $startUtc = \Carbon\Carbon::createFromFormat('Y-m-d', $startDate, $timezone)->startOfDay()->setTimezone('UTC');
+        $endUtc = \Carbon\Carbon::createFromFormat('Y-m-d', $endDate, $timezone)->endOfDay()->setTimezone('UTC');
+
         $expenses = \App\Models\Expense::with(['category', 'shift'])
             ->whereBetween('date', [$startDate, $endDate])
             ->when($outletId, fn($q) => $q->where('outlet_id', $outletId))
@@ -285,7 +321,7 @@ class ReportService
         // Include manual cash drawer logs (Cash Out) individually to show reasons
         $manualLogs = \App\Models\CashDrawerLog::with(['shift'])->where('type', 'out')
             ->whereNull('expense_id')
-            ->whereBetween('created_at', [$startDate . ' 00:00:00', $endDate . ' 23:59:59'])
+            ->whereBetween('created_at', [$startUtc, $endUtc])
             ->when($outletId, function($q) use ($outletId) {
                 return $q->whereHas('shift', fn($sq) => $sq->where('outlet_id', $outletId));
             })
@@ -315,8 +351,12 @@ class ReportService
 
     public function getProfitLossSummary(string $startDate, string $endDate, ?string $outletId = null): array
     {
+        $timezone = $this->timezone();
+        $startUtc = \Carbon\Carbon::createFromFormat('Y-m-d', $startDate, $timezone)->startOfDay()->setTimezone('UTC');
+        $endUtc = \Carbon\Carbon::createFromFormat('Y-m-d', $endDate, $timezone)->endOfDay()->setTimezone('UTC');
+
         $totalRevenue = (float) Transaction::where('status', 'completed')
-            ->whereBetween('created_at', [$startDate . ' 00:00:00', $endDate . ' 23:59:59'])
+            ->whereBetween('created_at', [$startUtc, $endUtc])
             ->when($outletId, fn($q) => $q->where('outlet_id', $outletId))
             ->sum('grand_total');
 
@@ -327,7 +367,7 @@ class ReportService
         // Add manual cash out logs
         $manualCashOut = (float) \App\Models\CashDrawerLog::where('type', 'out')
             ->whereNull('expense_id')
-            ->whereBetween('created_at', [$startDate . ' 00:00:00', $endDate . ' 23:59:59'])
+            ->whereBetween('created_at', [$startUtc, $endUtc])
             ->when($outletId, function($q) use ($outletId) {
                 return $q->whereHas('shift', fn($sq) => $sq->where('outlet_id', $outletId));
             })
@@ -341,5 +381,19 @@ class ReportService
             'net_profit' => $totalRevenue - $totalExpense,
             'status' => ($totalRevenue - $totalExpense) >= 0 ? 'profit' : 'loss'
         ];
+    }
+
+    public function getTransactionsByDate(string $date, ?string $outletId = null): Collection
+    {
+        $timezone = $this->timezone();
+        $start = \Carbon\Carbon::createFromFormat('Y-m-d', $date, $timezone)->startOfDay()->setTimezone('UTC');
+        $end = \Carbon\Carbon::createFromFormat('Y-m-d', $date, $timezone)->endOfDay()->setTimezone('UTC');
+
+        return Transaction::with(['user', 'customer', 'items'])
+            ->whereBetween('created_at', [$start, $end])
+            ->where('status', 'completed')
+            ->when($outletId, fn ($q) => $q->where('outlet_id', $outletId))
+            ->orderByDesc('created_at')
+            ->get();
     }
 }

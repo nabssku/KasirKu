@@ -66,4 +66,11 @@ class Outlet extends Model
     {
         return $this->hasMany(Shift::class);
     }
+
+    public function paymentMethods()
+    {
+        return $this->belongsToMany(PaymentMethod::class, 'outlet_payment_methods')
+            ->withPivot(['id', 'is_enabled', 'config'])
+            ->withTimestamps();
+    }
 }

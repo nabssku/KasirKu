@@ -141,6 +141,7 @@ class TransactionService
                             'tenant_id'        => $user->tenant_id,
                             'transaction_id'   => $transaction->id,
                             'payment_method'   => $paymentData['method'],
+                            'payment_method_name' => $paymentData['name'] ?? null,
                             'amount'           => $paymentData['amount'],
                             'payment_reference' => $paymentData['reference'] ?? null,
                             'paid_at'          => now(),
@@ -151,6 +152,7 @@ class TransactionService
                         'tenant_id'      => $user->tenant_id,
                         'transaction_id' => $transaction->id,
                         'payment_method' => $dto->payment_method,
+                        'payment_method_name' => $dto->payment_method_name,
                         'amount'         => $totalPaid,
                         'paid_at'        => now(),
                     ]);
@@ -291,6 +293,7 @@ class TransactionService
                             'tenant_id'        => $user->tenant_id,
                             'transaction_id'   => $transaction->id,
                             'payment_method'   => $paymentData['method'],
+                            'payment_method_name' => $paymentData['name'] ?? null,
                             'amount'           => $paymentData['amount'],
                             'payment_reference' => $paymentData['reference'] ?? null,
                             'paid_at'          => now(),
@@ -301,6 +304,7 @@ class TransactionService
                         'tenant_id'      => $user->tenant_id,
                         'transaction_id' => $transaction->id,
                         'payment_method' => $dto->payment_method,
+                        'payment_method_name' => $dto->payment_method_name,
                         'amount'         => $totalPaid,
                         'paid_at'        => now(),
                     ]);

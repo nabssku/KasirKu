@@ -20,7 +20,10 @@ class TransactionResource extends JsonResource
             'grand_total'    => (float) $this->grand_total,
             'paid_amount'    => (float) $this->paid_amount,
             'change_amount'  => (float) $this->change_amount,
-            'payment_method' => $this->whenLoaded('payments', fn() => $this->payments->first()?->payment_method),
+            'payment_method' => $this->whenLoaded('payments', function() {
+                $payment = $this->payments->first();
+                return $payment?->payment_method_name ?? $payment?->payment_method;
+            }),
             'status'         => $this->status,
             'notes'          => $this->notes,
             'cancel_reason'  => $this->cancel_reason,
