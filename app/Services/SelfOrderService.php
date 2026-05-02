@@ -319,7 +319,11 @@ class SelfOrderService
     // ──────────────────────────────────────────────────────────────────────────
     public function getOrderStatus(string $sessionToken): array
     {
-        $session = SelfOrderSession::where('session_token', $sessionToken)->first();
+        // Use withoutGlobalScopes and eager load outlet to ensure it works on public endpoint
+        $session = SelfOrderSession::withoutGlobalScopes()
+            ->with('outlet')
+            ->where('session_token', $sessionToken)
+            ->first();
 
         if (!$session) {
             throw ValidationException::withMessages(['session' => 'Sesi tidak ditemukan.']);
@@ -418,7 +422,9 @@ class SelfOrderService
             'payment_url'        => $activePayment?->payment_url,
             'payment_checking'   => $paymentChecking,
             'message'            => $this->statusMessage($effectiveStatus),
-            'google_review_link' => ($effectiveStatus === 'completed' || $effectiveStatus === 'ready') ? $session->outlet->google_review_link : null,
+            'google_review_link' => in_array($effectiveStatus, ['paid', 'preparing', 'ready', 'completed']) 
+                ? $session->outlet?->google_review_link 
+                : null,
             'items'              => $transaction->items()->with('product:id,name,image')->get()->map(function($item) {
                 return [
                     'id'            => $item->id,

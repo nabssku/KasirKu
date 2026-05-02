@@ -27,13 +27,19 @@ class SuperAdminController extends Controller
         $activeSubscriptions = Subscription::withoutGlobalScopes()->where('status', 'active')->count();
         $trialSubscriptions  = Subscription::withoutGlobalScopes()->where('status', 'trial')->count();
         
-        // Actual paid revenue from payment transactions
+        // Actual paid revenue from subscription payments
         $totalPaidRevenue = PaymentTransaction::withoutGlobalScopes()
+            ->where('type', 'subscription')
             ->where('status', 'paid')
             ->sum('amount');
 
-        $totalOrders = PaymentTransaction::withoutGlobalScopes()->count();
-        $pendingOrders = PaymentTransaction::withoutGlobalScopes()->where('status', 'pending')->count();
+        $totalOrders = PaymentTransaction::withoutGlobalScopes()
+            ->where('type', 'subscription')
+            ->count();
+        $pendingOrders = PaymentTransaction::withoutGlobalScopes()
+            ->where('type', 'subscription')
+            ->where('status', 'pending')
+            ->count();
         $totalPlans    = Plan::count();
 
         $recentTenants = Tenant::withoutGlobalScopes()
@@ -341,6 +347,7 @@ class SuperAdminController extends Controller
     public function orders(Request $request): JsonResponse
     {
         $query = PaymentTransaction::withoutGlobalScopes()
+            ->where('type', 'subscription')
             ->with('tenant');
 
         if ($request->filled('status')) {
@@ -381,6 +388,7 @@ class SuperAdminController extends Controller
         $days = $request->input('days', 30);
         
         $stats = PaymentTransaction::withoutGlobalScopes()
+            ->where('type', 'subscription')
             ->where('status', 'paid')
             ->where('created_at', '>=', now()->subDays($days))
             ->select(
