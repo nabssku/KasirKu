@@ -385,3 +385,13 @@ Route::prefix('v1')->group(function () {
         });
     });
 });
+
+Route::prefix('v2')->group(function () {
+    // Test Route
+    Route::get('/test', function () {
+        return response()->json([
+            'success' => true,
+            'message' => 'Test route V2'
+        ]);
+    });
+});

@@ -1,5 +1,5 @@
 @echo off
-cd /d D:\portofolio\backend_kasirku
+cd /d D:\portofolio\KasirKu\backend_kasirku
 
 start cmd /k php artisan serve --port=8001
 start cmd /k php artisan reverb:start
