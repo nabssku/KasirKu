@@ -359,7 +359,7 @@ class TransactionService
                     $cashDrawerLogService->addCashDrawerLog($shift, [
                         'type'   => 'out',
                         'amount' => $cashRefundAmount,
-                        'reason' => "Pembatalan Transaksi #{$transaction->invoice_number} (Refund Tunai)"
+                        'reason' => "Pembatalan Transaksi #{$transaction->invoice_number} (Refund Cash)"
                     ]);
                 }
             }
