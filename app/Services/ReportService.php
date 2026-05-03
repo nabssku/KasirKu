@@ -167,11 +167,15 @@ class ReportService
             ->whereBetween('transactions.created_at', [$start, $end])
             ->when($outletId, fn ($q) => $q->where('transactions.outlet_id', $outletId))
             ->select(
-                'payments.payment_method',
-                DB::raw('COUNT(DISTINCT CASE WHEN transactions.status = "completed" THEN transactions.id END) as total_transactions'),
-                DB::raw('SUM(CASE WHEN transactions.status = "completed" THEN payments.amount ELSE -payments.amount END) as total_revenue')
+                DB::raw('COALESCE(payments.payment_method_name, payments.payment_method) as payment_method'),
+                DB::raw('COUNT(DISTINCT CASE WHEN LOWER(transactions.status) = "completed" THEN transactions.id END) as total_transactions'),
+                DB::raw('SUM(CASE 
+                    WHEN LOWER(transactions.status) = "completed" THEN 
+                        (payments.amount - (CASE WHEN LOWER(payments.payment_method) = "cash" THEN transactions.change_amount ELSE 0 END))
+                    WHEN LOWER(transactions.status) IN ("refunded", "cancelled") THEN -payments.amount 
+                    ELSE 0 END) as total_revenue')
             )
-            ->groupBy('payments.payment_method')
+            ->groupBy(DB::raw('COALESCE(payments.payment_method_name, payments.payment_method)'))
             ->get();
     }
 
