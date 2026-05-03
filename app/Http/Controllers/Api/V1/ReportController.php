@@ -44,6 +44,25 @@ class ReportController extends Controller
         return response()->json(['success' => true, 'data' => $data]);
     }
 
+    public function dashboardSummary(Request $request): JsonResponse
+    {
+        $outletId = $this->resolveOutletId($request);
+        $date = $request->query('date', now()->format('Y-m-d'));
+        
+        $paymentStart = $request->query('payment_start_date', now()->subDays(6)->format('Y-m-d'));
+        $paymentEnd = $request->query('payment_end_date', now()->format('Y-m-d'));
+
+        $data = [
+            'top_products' => $this->reportService->getTopSellingProducts(5, $outletId),
+            'least_products' => $this->reportService->getLeastSellingProducts(5, $outletId),
+            'payment_methods' => $this->reportService->getPaymentMethodSummary($outletId, $paymentStart, $paymentEnd),
+            'peak_hours' => $this->reportService->getPeakHours($outletId, $date),
+            'recent_activities' => $this->reportService->getRecentActivities(5, $outletId, $date),
+        ];
+
+        return response()->json(['success' => true, 'data' => $data]);
+    }
+
     public function exportCsv(Request $request)
     {
         $startDate = $request->query('start_date', now()->subDays(30)->format('Y-m-d'));

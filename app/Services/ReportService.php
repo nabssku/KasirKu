@@ -6,6 +6,7 @@ use App\Models\Ingredient;
 use App\Models\Outlet;
 use App\Models\Transaction;
 use App\Models\TransactionItem;
+use App\Models\Payment;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
@@ -28,16 +29,22 @@ class ReportService
         $end = \Carbon\Carbon::createFromFormat('Y-m-d', $date, $timezone)->endOfDay()->setTimezone('UTC');
 
         $transactions = Transaction::whereBetween('created_at', [$start, $end])
-            ->where('status', 'completed')
+            ->whereIn('status', ['completed', 'refunded', 'cancelled'])
             ->when($outletId, fn ($q) => $q->where('outlet_id', $outletId))
             ->get();
 
+        $grossSales = (float) $transactions->sum('grand_total');
+        $refunds = (float) $transactions->whereIn('status', ['refunded', 'cancelled'])->sum('grand_total');
+
         return [
             'date'                => $date,
-            'total_sales'         => $transactions->count(),
-            'total_revenue'       => (float) $transactions->sum('grand_total'),
-            'total_discount'      => (float) $transactions->sum('discount'),
-            'average_transaction' => (float) ($transactions->avg('grand_total') ?? 0),
+            'total_sales'         => $transactions->where('status', 'completed')->count(),
+            'total_refunds'       => $transactions->whereIn('status', ['refunded', 'cancelled'])->count(),
+            'gross_sales'         => $grossSales,
+            'refund_amount'       => $refunds,
+            'total_revenue'       => $grossSales - $refunds, // Net Sales
+            'total_discount'      => (float) $transactions->where('status', 'completed')->sum('discount'),
+            'average_transaction' => (float) ($transactions->where('status', 'completed')->avg('grand_total') ?? 0),
         ];
     }
 
@@ -48,25 +55,29 @@ class ReportService
         $end = \Carbon\Carbon::createFromDate($year, $month, 1, $timezone)->endOfMonth()->setTimezone('UTC');
 
         $transactions = Transaction::whereBetween('created_at', [$start, $end])
-            ->where('status', 'completed')
+            ->whereIn('status', ['completed', 'refunded', 'cancelled'])
             ->when($outletId, fn ($q) => $q->where('outlet_id', $outletId))
             ->get();
 
         $sales = $transactions->groupBy(function ($item) use ($timezone) {
             return $item->created_at->setTimezone($timezone)->format('Y-m-d');
         })->map(function ($items, $date) {
+            $dayGross = (float) $items->sum('grand_total');
+            $dayRefund = (float) $items->whereIn('status', ['refunded', 'cancelled'])->sum('grand_total');
             return [
                 'date' => $date,
-                'revenue' => (float) $items->sum('grand_total'),
-                'transaction_count' => $items->count()
+                'revenue' => $dayGross - $dayRefund,
+                'gross_sales' => $dayGross,
+                'refund_amount' => $dayRefund,
+                'transaction_count' => $items->where('status', 'completed')->count()
             ];
         })->values();
 
         return [
-            'year'            => $year,
-            'month'           => $month,
-            'monthly_total'   => (float) $sales->sum('revenue'),
-            'daily_breakdown' => $sales,
+            'year' => $year,
+            'month' => $month,
+            'total_revenue' => (float) $sales->sum('revenue'),
+            'sales' => $sales,
         ];
     }
 
@@ -119,6 +130,104 @@ class ReportService
         fclose($handle);
 
         return $content;
+    }
+
+    public function getLeastSellingProducts(int $limit = 5, ?string $outletId = null): Collection
+    {
+        return TransactionItem::join('transactions', 'transaction_items.transaction_id', '=', 'transactions.id')
+            ->where('transactions.status', 'completed')
+            ->when($outletId, fn ($q) => $q->where('transactions.outlet_id', $outletId))
+            ->select(
+                'transaction_items.product_id',
+                'transaction_items.product_name',
+                DB::raw('SUM(transaction_items.quantity) as total_quantity'),
+                DB::raw('SUM(transaction_items.subtotal) as total_revenue')
+            )
+            ->groupBy('transaction_items.product_id', 'transaction_items.product_name')
+            ->orderBy('total_quantity', 'asc')
+            ->limit($limit)
+            ->get();
+    }
+
+    public function getPaymentMethodSummary(?string $outletId = null, string $startDate = null, string $endDate = null): Collection
+    {
+        $timezone = $this->timezone();
+        
+        if ($startDate && $endDate) {
+            $start = \Carbon\Carbon::createFromFormat('Y-m-d', $startDate, $timezone)->startOfDay()->setTimezone('UTC');
+            $end = \Carbon\Carbon::createFromFormat('Y-m-d', $endDate, $timezone)->endOfDay()->setTimezone('UTC');
+        } else {
+            $date = $startDate ?? now()->format('Y-m-d');
+            $start = \Carbon\Carbon::createFromFormat('Y-m-d', $date, $timezone)->startOfDay()->setTimezone('UTC');
+            $end = \Carbon\Carbon::createFromFormat('Y-m-d', $date, $timezone)->endOfDay()->setTimezone('UTC');
+        }
+
+        return Payment::join('transactions', 'payments.transaction_id', '=', 'transactions.id')
+            ->whereIn('transactions.status', ['completed', 'refunded', 'cancelled'])
+            ->whereBetween('transactions.created_at', [$start, $end])
+            ->when($outletId, fn ($q) => $q->where('transactions.outlet_id', $outletId))
+            ->select(
+                'payments.payment_method',
+                DB::raw('COUNT(DISTINCT CASE WHEN transactions.status = "completed" THEN transactions.id END) as total_transactions'),
+                DB::raw('SUM(CASE WHEN transactions.status = "completed" THEN payments.amount ELSE -payments.amount END) as total_revenue')
+            )
+            ->groupBy('payments.payment_method')
+            ->get();
+    }
+
+    public function getPeakHours(?string $outletId = null, string $date = null): Collection
+    {
+        $date = $date ?? now()->format('Y-m-d');
+        $timezone = $this->timezone();
+        $start = \Carbon\Carbon::createFromFormat('Y-m-d', $date, $timezone)->startOfDay()->setTimezone('UTC');
+        $end = \Carbon\Carbon::createFromFormat('Y-m-d', $date, $timezone)->endOfDay()->setTimezone('UTC');
+
+        $transactions = Transaction::where('status', 'completed')
+            ->whereBetween('created_at', [$start, $end])
+            ->when($outletId, fn ($q) => $q->where('outlet_id', $outletId))
+            ->get();
+
+        $hours = [];
+        for ($i = 0; $i < 24; $i++) {
+            $hours[$i] = 0;
+        }
+
+        foreach ($transactions as $tx) {
+            $hour = $tx->created_at->setTimezone($timezone)->hour;
+            $hours[$hour]++;
+        }
+
+        return collect($hours)->map(fn($count, $hour) => [
+            'hour' => sprintf('%02d:00', $hour),
+            'count' => $count
+        ])->values();
+    }
+
+    public function getRecentActivities(int $limit = 5, ?string $outletId = null, string $date = null): Collection
+    {
+        $timezone = $this->timezone();
+        
+        return Transaction::with(['user'])
+            ->whereIn('status', ['completed', 'cancelled', 'refunded'])
+            ->when($date, function($q) use ($date, $timezone) {
+                $start = \Carbon\Carbon::createFromFormat('Y-m-d', $date, $timezone)->startOfDay()->setTimezone('UTC');
+                $end = \Carbon\Carbon::createFromFormat('Y-m-d', $date, $timezone)->endOfDay()->setTimezone('UTC');
+                return $q->whereBetween('created_at', [$start, $end]);
+            })
+            ->when($outletId, fn ($q) => $q->where('outlet_id', $outletId))
+            ->orderByDesc('created_at')
+            ->limit($limit)
+            ->get()
+            ->map(fn($tx) => [
+                'id' => $tx->id,
+                'invoice_number' => $tx->invoice_number,
+                'cashier_name' => $tx->user->name,
+                'grand_total' => (float) $tx->grand_total,
+                'status' => $tx->status,
+                'cancel_reason' => $tx->cancel_reason,
+                'time' => $tx->created_at->setTimezone($timezone)->format('H:i'),
+                'created_at' => $tx->created_at->toDateTimeString(),
+            ]);
     }
 
     /**

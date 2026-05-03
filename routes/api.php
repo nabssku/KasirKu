@@ -326,6 +326,7 @@ Route::prefix('v1')->group(function () {
             Route::get('/daily',        [ReportController::class, 'daily']);
             Route::get('/monthly',      [ReportController::class, 'monthly']);
             Route::get('/top-products', [ReportController::class, 'topProducts']);
+            Route::get('/dashboard-summary', [ReportController::class, 'dashboardSummary']);
             Route::get('/export-csv',   [ReportController::class, 'exportCsv']);
             Route::get('/profit',       [ReportController::class, 'profit']);
             Route::get('/by-staff',     [ReportController::class, 'byStaff']);
