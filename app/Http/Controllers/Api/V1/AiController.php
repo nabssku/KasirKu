@@ -93,7 +93,7 @@ class AiController extends Controller
             $trend = $this->reportService->getMonthlyRevenue($monthDate->year, $monthDate->month, $outletId);
             $monthlyTrends[] = [
                 'month' => $monthDate->format('M Y'),
-                'revenue' => $trend['monthly_total'],
+                'revenue' => $trend['total_revenue'],
             ];
         }
 
