@@ -40,7 +40,7 @@ class OtpService
     /**
      * Verify the OTP code.
      */
-    public function verify(string $email, string $code, string $type): bool
+    public function verify(string $email, string $code, string $type, bool $deleteAfter = true): bool
     {
         $otp = Otp::where('email', $email)
             ->where('code', $code)
@@ -49,7 +49,9 @@ class OtpService
             ->first();
 
         if ($otp) {
-            $otp->delete(); // Delete after successful verification
+            if ($deleteAfter) {
+                $otp->delete(); // Delete after successful verification
+            }
             return true;
         }
 

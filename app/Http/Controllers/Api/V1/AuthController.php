@@ -8,7 +8,11 @@ use App\Http\Requests\Auth\LoginRequest;
 use App\Http\Requests\Auth\RegisterTenantRequest;
 use App\Services\AuthService;
 use App\Services\TenantService;
+use App\Models\User;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Http\Request;
 
 class AuthController extends Controller
 {
@@ -25,21 +29,42 @@ class AuthController extends Controller
             'type' => 'sometimes|string|in:registration,reset_password,verification',
         ]);
 
+        $type = $validated['type'] ?? 'registration';
+
+        // Additional validation based on type
+        if ($type === 'registration') {
+            $exists = User::where('email', $validated['email'])->exists();
+            if ($exists) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Email ini sudah terdaftar. Silakan masuk menggunakan akun Anda.',
+                ], 422);
+            }
+        } elseif ($type === 'reset_password' || $type === 'verification') {
+            $exists = User::where('email', $validated['email'])->exists();
+            if (!$exists) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Email tidak ditemukan dalam sistem kami.',
+                ], 422);
+            }
+        }
+
         $success = $this->otpService->generateAndSend(
             $validated['email'], 
-            $validated['type'] ?? 'registration'
+            $type
         );
 
         if ($success) {
             return response()->json([
                 'success' => true,
-                'message' => 'OTP sent successfully to ' . $validated['email'],
+                'message' => 'Kode OTP berhasil dikirim ke ' . $validated['email'],
             ]);
         }
 
         return response()->json([
             'success' => false,
-            'message' => 'Failed to send OTP. Please try again.',
+            'message' => 'Gagal mengirim kode OTP. Silakan periksa konfigurasi email atau coba lagi nanti.',
         ], 500);
     }
 
@@ -54,7 +79,8 @@ class AuthController extends Controller
         $isValid = $this->otpService->verify(
             $validated['email'],
             $validated['code'],
-            $validated['type']
+            $validated['type'],
+            false // Don't delete yet, wait for the final action
         );
 
         if ($isValid) {
@@ -72,7 +98,23 @@ class AuthController extends Controller
 
     public function register(RegisterTenantRequest $request): JsonResponse
     {
-        $dto = RegisterTenantDTO::fromRequest($request->validated());
+        $validated = $request->validated();
+
+        // Verify OTP
+        $isValid = $this->otpService->verify(
+            $validated['email'],
+            $validated['code'],
+            'registration'
+        );
+
+        if (!$isValid) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Invalid or expired OTP code.',
+            ], 422);
+        }
+
+        $dto = RegisterTenantDTO::fromRequest($validated);
         $result = $this->tenantService->register($dto);
 
         return response()->json([
@@ -167,13 +209,13 @@ class AuthController extends Controller
         }
 
         // 2. Update Password
-        $user = \App\Models\User::where('email', $validated['email'])->first();
-        $user->password = \Illuminate\Support\Facades\Hash::make($validated['password']);
+        $user = User::where('email', $validated['email'])->first();
+        $user->password = Hash::make($validated['password']);
         $user->save();
 
         return response()->json([
             'success' => true,
-            'message' => 'Password has been reset successfully.',
+            'message' => 'Kata sandi berhasil diatur ulang.',
         ]);
     }
 }

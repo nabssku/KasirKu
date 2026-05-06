@@ -19,6 +19,7 @@ class RegisterTenantRequest extends FormRequest
             'email' => ['required', 'string', 'email', 'max:255', 'unique:users'],
             'password' => ['required', 'string', 'min:8', 'confirmed'],
             'domain' => ['nullable', 'string', 'unique:tenants'],
+            'code' => ['required', 'string', 'size:6'],
         ];
     }
 }
