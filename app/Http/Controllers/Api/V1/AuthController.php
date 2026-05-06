@@ -22,7 +22,7 @@ class AuthController extends Controller
         protected \App\Services\OtpService $otpService
     ) {}
 
-    public function sendOtp(\Illuminate\Http\Request $request): JsonResponse
+    public function sendOtp(Request $request): JsonResponse
     {
         $validated = $request->validate([
             'email' => 'required|email',
@@ -68,8 +68,9 @@ class AuthController extends Controller
         ], 500);
     }
 
-    public function verifyOtp(\Illuminate\Http\Request $request): JsonResponse
+    public function verifyOtp(Request $request): JsonResponse
     {
+        Log::info('Verify OTP Request:', $request->all());
         $validated = $request->validate([
             'email' => 'required|email',
             'code' => 'required|string|size:6',
@@ -98,6 +99,7 @@ class AuthController extends Controller
 
     public function register(RegisterTenantRequest $request): JsonResponse
     {
+        Log::info('Register Request Data:', $request->all());
         $validated = $request->validated();
 
         // Verify OTP
@@ -139,7 +141,7 @@ class AuthController extends Controller
         ]);
     }
 
-    public function loginPin(\Illuminate\Http\Request $request): JsonResponse
+    public function loginPin(Request $request): JsonResponse
     {
         $validated = $request->validate([
             'email' => 'required|email',
@@ -186,8 +188,9 @@ class AuthController extends Controller
         ]);
     }
 
-    public function resetPassword(\Illuminate\Http\Request $request): JsonResponse
+    public function resetPassword(Request $request): JsonResponse
     {
+        Log::info('Reset Password Request:', $request->all());
         $validated = $request->validate([
             'email' => 'required|email|exists:users,email',
             'code' => 'required|string|size:6',

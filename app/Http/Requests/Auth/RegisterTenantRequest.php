@@ -13,6 +13,7 @@ class RegisterTenantRequest extends FormRequest
 
     public function rules(): array
     {
+        \Illuminate\Support\Facades\Log::info('Validating Register Request:', $this->all());
         return [
             'tenant_name' => ['required', 'string', 'max:255'],
             'owner_name' => ['required', 'string', 'max:255'],

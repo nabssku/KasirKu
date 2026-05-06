@@ -9,6 +9,7 @@ class RegisterTenantDTO
         public string $owner_name,
         public string $email,
         public string $password,
+        public string $code,
         public ?string $domain = null
     ) {}
 
@@ -19,6 +20,7 @@ class RegisterTenantDTO
             owner_name: $data['owner_name'],
             email: $data['email'],
             password: $data['password'],
+            code: $data['code'],
             domain: $data['domain'] ?? null
         );
     }
