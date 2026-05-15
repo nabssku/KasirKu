@@ -9,13 +9,15 @@ return new class extends Migration
 {
     public function up(): void
     {
-        // For MySQL, we need to modify the ENUM to add new values
-        DB::statement("ALTER TABLE transactions MODIFY COLUMN type ENUM('dine_in','takeaway','delivery','walk_in','online') DEFAULT 'dine_in'");
+        Schema::table('transactions', function (Blueprint $table) {
+            $table->string('type')->default('dine_in')->change();
+        });
     }
 
     public function down(): void
     {
-        // Revert: remove walk_in and online (existing data with these values will be lost)
-        DB::statement("ALTER TABLE transactions MODIFY COLUMN type ENUM('dine_in','takeaway','delivery') DEFAULT 'dine_in'");
+        Schema::table('transactions', function (Blueprint $table) {
+            $table->string('type')->default('dine_in')->change();
+        });
     }
 };

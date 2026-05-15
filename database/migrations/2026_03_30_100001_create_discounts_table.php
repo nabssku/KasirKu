@@ -13,7 +13,7 @@ return new class extends Migration
             $blueprint->string('code')->unique();
             $blueprint->string('name');
             $blueprint->text('description')->nullable();
-            $blueprint->enum('type', ['percentage', 'fixed'])->default('percentage');
+            $blueprint->string('type')->default('percentage'); // percentage, fixed
             $blueprint->decimal('value', 15, 2);
             $blueprint->decimal('min_purchase_amount', 15, 2)->default(0);
             $blueprint->integer('max_uses_total')->nullable();

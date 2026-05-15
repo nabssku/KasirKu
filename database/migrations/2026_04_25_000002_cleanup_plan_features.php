@@ -112,9 +112,10 @@ return new class extends Migration
 
         // 4. Handle any remaining duplicates (same plan_id + feature_key)
         $duplicates = DB::table('plan_features')
-            ->select('plan_id', 'feature_key', DB::raw('COUNT(*) as count'))
+            ->select('plan_id', 'feature_key')
+            ->selectRaw('COUNT(*) as count')
             ->groupBy('plan_id', 'feature_key')
-            ->having('count', '>', 1)
+            ->havingRaw('COUNT(*) > 1')
             ->get();
 
         foreach ($duplicates as $dup) {

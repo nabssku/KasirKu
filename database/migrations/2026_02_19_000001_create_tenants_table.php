@@ -17,7 +17,7 @@ return new class extends Migration
             $table->string('domain')->unique()->nullable();
             $table->string('email')->unique();
             $table->json('settings')->nullable();
-            $table->enum('status', ['active', 'inactive', 'suspended'])->default('active');
+            $table->string('status')->default('active'); // active, inactive, suspended
             $table->timestamp('trial_ends_at')->nullable();
             $table->timestamp('subscription_ends_at')->nullable();
             $table->timestamps();

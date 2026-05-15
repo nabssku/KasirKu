@@ -29,7 +29,7 @@ return new class extends Migration
             $table->uuid('id')->primary();
             $table->foreignUuid('shift_id')->constrained()->onDelete('cascade');
             $table->foreignId('user_id')->constrained()->onDelete('restrict');
-            $table->enum('type', ['in', 'out']); // petty cash in / payout
+            $table->string('type'); // petty cash in / payout
             $table->decimal('amount', 15, 2);
             $table->string('reason')->nullable();
             $table->timestamps();

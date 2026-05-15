@@ -34,7 +34,7 @@ return new class extends Migration
             $table->decimal('grand_total', 15, 2);
             $table->decimal('paid_amount', 15, 2)->default(0);
             $table->decimal('change_amount', 15, 2)->default(0);
-            $table->enum('status', ['pending', 'completed', 'cancelled'])->default('completed');
+            $table->string('status')->default('completed'); // pending, completed, cancelled, refunded, etc.
             $table->text('notes')->nullable();
             $table->timestamps();
             $table->softDeletes();

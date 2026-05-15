@@ -42,7 +42,7 @@ return new class extends Migration
             $table->foreignUuid('tenant_id')->index()->constrained()->onDelete('cascade');
             $table->foreignUuid('outlet_id')->nullable()->constrained()->onDelete('set null');
             $table->foreignUuid('ingredient_id')->constrained()->onDelete('cascade');
-            $table->enum('type', ['in', 'out', 'adjustment', 'waste']);
+            $table->string('type'); // in, out, adjustment, waste
             $table->decimal('quantity', 15, 4);
             $table->decimal('quantity_before', 15, 4)->default(0);
             $table->decimal('quantity_after', 15, 4)->default(0);

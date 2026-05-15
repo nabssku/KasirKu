@@ -11,12 +11,12 @@ return new class extends Migration
         Schema::create('payment_transactions', function (Blueprint $table) {
             $table->uuid('id')->primary();
             $table->foreignUuid('tenant_id')->index()->constrained()->onDelete('cascade');
-            $table->enum('type', ['subscription', 'topup'])->default('subscription');
+            $table->string('type')->default('subscription');
             $table->decimal('amount', 15, 2);
             $table->string('gateway')->default('midtrans'); // midtrans, manual
             $table->string('gateway_order_id')->nullable(); // Midtrans order_id
             $table->string('gateway_transaction_id')->nullable();
-            $table->enum('status', ['pending', 'paid', 'failed', 'expired', 'refunded'])->default('pending');
+            $table->string('status')->default('pending');
             $table->json('gateway_payload')->nullable(); // full Midtrans response
             $table->timestamp('paid_at')->nullable();
             $table->timestamps();

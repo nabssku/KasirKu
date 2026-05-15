@@ -12,7 +12,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('transactions', function (Blueprint $table) {
-            $table->enum('status', ['pending', 'completed', 'cancelled', 'refunded'])->default('completed')->change();
+            $table->string('status')->default('completed')->change();
         });
     }
 
@@ -22,7 +22,7 @@ return new class extends Migration
     public function down(): void
     {
         Schema::table('transactions', function (Blueprint $table) {
-            $table->enum('status', ['pending', 'completed', 'cancelled'])->default('completed')->change();
+            $table->string('status')->default('completed')->change();
         });
     }
 };

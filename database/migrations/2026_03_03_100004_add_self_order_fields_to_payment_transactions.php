@@ -25,9 +25,9 @@ return new class extends Migration
         });
 
         // Extend type enum to include self_order_payment
-        DB::statement("ALTER TABLE payment_transactions MODIFY COLUMN type ENUM(
-            'subscription','topup','self_order_payment'
-        ) NOT NULL DEFAULT 'subscription'");
+        Schema::table('payment_transactions', function (Blueprint $table) {
+            $table->string('type')->default('subscription')->change();
+        });
     }
 
     public function down(): void
@@ -38,8 +38,8 @@ return new class extends Migration
             $table->dropColumn(['transaction_id', 'outlet_id', 'expires_at']);
         });
 
-        DB::statement("ALTER TABLE payment_transactions MODIFY COLUMN type ENUM(
-            'subscription','topup'
-        ) NOT NULL DEFAULT 'subscription'");
+        Schema::table('payment_transactions', function (Blueprint $table) {
+            $table->string('type')->default('subscription')->change();
+        });
     }
 };

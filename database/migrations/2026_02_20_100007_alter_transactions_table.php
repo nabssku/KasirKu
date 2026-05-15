@@ -16,7 +16,7 @@ return new class extends Migration
             $table->uuid('table_id')->nullable()->after('customer_id');
             $table->uuid('shift_id')->nullable()->after('table_id');
 
-            $table->enum('type', ['dine_in', 'takeaway', 'delivery'])->default('dine_in')->after('shift_id');
+            $table->string('type')->default('dine_in')->after('shift_id');
             $table->decimal('tax_rate', 5, 2)->default(10)->after('discount');
             $table->decimal('service_charge', 15, 2)->default(0)->after('tax_rate');
         });
