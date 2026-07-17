@@ -39,6 +39,13 @@ class OnboardingController extends Controller
         $user = auth()->user();
         $tenant = $user->tenant;
 
+        if (!$tenant) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Tenant tidak ditemukan atau sudah dinonaktifkan.',
+            ], 404);
+        }
+
         return DB::transaction(function () use ($template, $tenant, $user) {
             // 1. Create Default Outlet
             $outlet = Outlet::create([
@@ -150,6 +157,13 @@ class OnboardingController extends Controller
     public function complete(Request $request): JsonResponse
     {
         $tenant = auth()->user()->tenant;
+        if (!$tenant) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Tenant tidak ditemukan atau sudah dinonaktifkan.',
+            ], 404);
+        }
+
         $settings = $tenant->settings ?? [];
         $settings['onboarding_completed'] = true;
         $settings['onboarding_step'] = 'completed';
