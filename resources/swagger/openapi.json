@@ -30,8 +30,8 @@
     "/auth/register": {
       "post": {
         "tags": ["Authentication"],
-        "summary": "Mendaftarkan tenant (bisnis) dan owner baru",
-        "security": [],
+        "summary": "Pendaftaran Multi-Tenant & Owner",
+        "description": "Mendaftarkan tenant (bisnis) dan owner admin baru.",
         "requestBody": {
           "required": true,
           "content": {
@@ -52,17 +52,16 @@
           }
         },
         "responses": {
-          "201": {
-            "description": "Tenant & Owner berhasil dideraftar."
-          }
+          "201": { "description": "Tenant & Owner baru berhasil dibuat." },
+          "400": { "description": "Validasi gagal / domain sudah digunakan." }
         }
       }
     },
-    "/auth/login": {
+    "/sf/auth/login": {
       "post": {
         "tags": ["Authentication"],
-        "summary": "Login Owner untuk mendapatkan token JWT",
-        "security": [],
+        "summary": "Login email & password",
+        "description": "Mendapatkan JWT Token untuk owner.",
         "requestBody": {
           "required": true,
           "content": {
@@ -79,27 +78,23 @@
           }
         },
         "responses": {
-          "200": {
-            "description": "Login sukses, mengembalikan token JWT."
-          }
+          "200": { "description": "Token JWT berhasil dibuat." }
         }
       }
     },
     "/auth/login-pin": {
       "post": {
         "tags": ["Authentication"],
-        "summary": "Login Staff menggunakan PIN cepat",
-        "security": [],
+        "summary": "Login Staff via PIN cepat",
         "requestBody": {
           "required": true,
           "content": {
             "application/json": {
               "schema": {
                 "type": "object",
-                "required": ["tenant_id", "email", "pin"],
+                "required": ["email", "pin"],
                 "properties": {
-                  "tenant_id": { "type": "string", "example": "uuid-tenant-string" },
-                  "email": { "type": "string", "example": "kasir1@mariq.com" },
+                  "email": { "type": "string", "example": "staff1@mariq.com" },
                   "pin": { "type": "string", "example": "123456" }
                 }
               }
@@ -107,25 +102,116 @@
           }
         },
         "responses": {
-          "200": {
-            "description": "Login PIN berhasil."
+          "200": { "description": "Login PIN berhasil." }
+        }
+      }
+    },
+    "/auth/logout": {
+      " Sf/post": {
+        "tags": ["Authentication"],
+        "summary": "Logout & Hapus token",
+        "responses": {
+          "200": { "description": "Logout berhasil." }
+        }
+      }
+    },
+    "/auth/me": {
+      "get": {
+        "tags": ["Authentication"],
+        "summary": "Informasi Pengguna Aktif",
+        "description": "Mengembalikan data user login berserta relasi outlet, tenant, dan subscription plan.",
+        "responses": {
+          "200": { "description": "Detail user diambil." }
+        }
+      }
+    },
+    "/auth/otp/send": {
+      "post": {
+        "tags": ["Authentication"],
+        "summary": "Kirim Kode OTP",
+        "description": "Mengirimkan email OTP (verifikasi pendaftaran, reset password, dll).",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["email", "type"],
+                "properties": {
+                  "email": { "type": "string", "example": "owner@mariq.com" },
+                  "type": { "type": "string", "example": "registration" }
+                }
+              }
+            }
           }
+        },
+        "responses": {
+          "200": { "description": "OTP terkirim." }
+        }
+      }
+    },
+    "/auth/otp/verify": {
+      "post": {
+        "tags": ["Authentication"],
+        "summary": "Verifikasi Kode OTP",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["email", "code", "type"],
+                "properties": {
+                  "email": { "type": "string", "example": "owner@mariq.com" },
+                  "code": { "type": "string", "example": "123456" },
+                  "type": { "type": "string", "example": "registration" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Verifikasi sukses." }
+        }
+      }
+    },
+    "/auth/reset-password": {
+      "post": {
+        "tags": ["Authentication"],
+        "summary": "Ubah password (dengan kode OTP)",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["email", "code", "password", "password_confirmation"],
+                "properties": {
+                  "email": { "type": "string", "example": "owner@mariq.com" },
+                  "code": { "type": "string", "example": "123456" },
+                  "password": { "type": "string", "example": "newpassword123" },
+                  "password_confirmation": { "type": "string", "example": "newpassword123" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Pasword disetel ulang." }
         }
       }
     },
     "/products": {
       "get": {
         "tags": ["Products"],
-        "summary": "Mendapatkan daftar semua produk",
+        "summary": "Daftar Semua Produk",
         "responses": {
-          "200": {
-            "description": "Daftar produk berhasil diambil."
-          }
+          "200": { "description": "Produk berhasil diambil." }
         }
       },
       "post": {
         "tags": ["Products"],
-        "summary": "Menambahkan produk baru",
+        "summary": "Buat produk baru",
         "requestBody": {
           "required": true,
           "content": {
@@ -134,12 +220,13 @@
                 "type": "object",
                 "required": ["category_id", "name", "price", "stock"],
                 "properties": {
-                  "category_id": { "type": "string", "example": "uuid-kategori" },
-                  "name": { "type": "string", "example": "Coto Makassar Premium" },
+                  "category_id": { "type": "string", "example": "uuid-category" },
+                  "name": { "type": "string", "example": "Coto Makassar Aru" },
+                  "sku": { "type": "string", "example": "CT-ARU" },
                   "price": { "type": "integer", "example": 25000 },
                   "cost_price": { "type": "integer", "example": 15000 },
-                  "stock": { "type": "integer", "example": 50 },
-                  "min_stock": { "type": "integer", "example": 5 },
+                  "stock": { "type": "integer", "example": 100 },
+                  "min_stock": { "type": "integer", "example": 10 },
                   "is_active": { "type": "boolean", "example": true }
                 }
               }
@@ -147,26 +234,24 @@
           }
         },
         "responses": {
-          "201": {
-            "description": "Produk berhasil ditambahkan."
-          }
+          "201": { "description": "Produk dibuat." }
         }
       }
     },
     "/products/{id}": {
       "get": {
         "tags": ["Products"],
-        "summary": "Detail produk berdasarkan ID",
+        "summary": "Detail produk",
         "parameters": [
           { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
         ],
         "responses": {
-          "200": { "description": "Detail produk diambil." }
+          "200": { "description": "Data produk." }
         }
       },
       "put": {
         "tags": ["Products"],
-        "summary": "Update data produk",
+        "summary": "Update produk",
         "parameters": [
           { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
         ],
@@ -177,20 +262,20 @@
               "schema": {
                 "type": "object",
                 "properties": {
-                  "name": { "type": "string", "example": "Coto Makassar Spesial" },
-                  "price": { "type": "integer", "example": 28000 }
+                  "name": { "type": "string" },
+                  "price": { "type": "integer" }
                 }
               }
             }
           }
         },
         "responses": {
-          "200": { "description": "Produk diupdate." }
+          "200": { "description": "Produk berhasil diupdate." }
         }
       },
       "delete": {
         "tags": ["Products"],
-        "summary": "Hapus produk",
+        "summary": "Lempar produk ke keranjang sampah (soft delete)",
         "parameters": [
           { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
         ],
@@ -202,14 +287,14 @@
     "/categories": {
       "get": {
         "tags": ["Categories"],
-        "summary": "Daftar kategori produk",
+        "summary": "Daftar Kategori",
         "responses": {
-          "200": { "description": "Daftar kategori." }
+          "200": { "description": "Daftar kategori diambil." }
         }
       },
       "post": {
         "tags": ["Categories"],
-        "summary": "Tambahkan kategori baru",
+        "summary": "Buat Kategori Baru",
         "requestBody": {
           "required": true,
           "content": {
@@ -229,17 +314,96 @@
         }
       }
     },
+    "/categories/{id}": {
+      "get": {
+        "tags": ["Categories"],
+        "summary": "Detail kategori",
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": { "description": "Data kategori." }
+        }
+      },
+      "put": {
+        "tags": ["Categories"],
+        "summary": "Update Kategori",
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["name"],
+                "properties": {
+                  "name": { "type": "string" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Kategori diupdate." }
+        }
+      },
+      "delete": {
+        "tags": ["Categories"],
+        "summary": "Hapus Kategori",
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": { "description": "Kategori dihapus." }
+        }
+      }
+    },
+    "/customers": {
+      "get": {
+        "tags": ["Customers"],
+        "summary": "Daftar Pelanggan",
+        "responses": {
+          "200": { "description": "Daftar pelanggan." }
+        }
+      },
+      "post": {
+        "tags": ["Customers"],
+        "summary": "Buat Pelanggan Baru",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["name"],
+                "properties": {
+                  "name": { "type": "string", "example": "Jane Doe" },
+                  "phone": { "type": "string", "example": "0812345678" },
+                  "email": { "type": "string", "example": "jane@example.com" },
+                  "address": { "type": "string", "example": "Malang" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": { "description": "Pelanggan terbuat." }
+        }
+      }
+    },
     "/transactions": {
       "get": {
         "tags": ["POS Transactions"],
-        "summary": "Riwayat transaksi POS",
+        "summary": "Daftar/Histori transaksi POS",
         "responses": {
           "200": { "description": "Daftar transaksi." }
         }
       },
       "post": {
         "tags": ["POS Transactions"],
-        "summary": "Buat transaksi penjualan baru (Checkout)",
+        "summary": "Buat Transaksi Kasir Baru (Checkout)",
         "requestBody": {
           "required": true,
           "content": {
@@ -254,17 +418,17 @@
                       "type": "object",
                       "required": ["product_id", "quantity", "price"],
                       "properties": {
-                        "product_id": { "type": "string", "example": "uuid-produk-latte" },
+                        "product_id": { "type": "string", "example": "uuid-produk-makanan" },
                         "quantity": { "type": "integer", "example": 2 },
                         "price": { "type": "integer", "example": 25000 }
                       }
                     }
                   },
-                  "customer_id": { "type": "string", "example": "uuid-pelanggan (opsional)" },
+                  "customer_id": { "type": "string" },
                   "discount": { "type": "integer", "example": 5000 },
                   "paid_amount": { "type": "integer", "example": 50000 },
                   "payment_method": { "type": "string", "example": "cash" },
-                  "notes": { "type": "string", "example": "Pedas manis" }
+                  "notes": { "type": "string" }
                 }
               }
             }
@@ -275,24 +439,452 @@
         }
       }
     },
-    "/reports/daily": {
+    "/transactions/{id}": {
       "get": {
-        "tags": ["Reports"],
-        "summary": "Laporan penjualan harian",
+        "tags": ["POS Transactions"],
+        "summary": "Detail Transaksi",
         "parameters": [
-          { "name": "date", "in": "query", "required": false, "schema": { "type": "string", "example": "2026-07-17" } }
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
         ],
         "responses": {
-          "200": { "description": "Laporan harian diambil." }
+          "200": { "description": "Rincian detail transaksi." }
         }
       }
     },
-    "/reports/top-products": {
+    "/transactions/{id}/receipt": {
       "get": {
-        "tags": ["Reports"],
-        "summary": "Daftar produk paling laris terjual",
+        "tags": ["POS Transactions"],
+        "summary": "Unduh Struk Transaksi POS",
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
         "responses": {
-          "200": { "description": "Produk terlaris diambil." }
+          "200": { "description": "Preview/Data print struk belanja." }
+        }
+      }
+    },
+    "/transactions/{id}/cancel": {
+      "post": {
+        "tags": ["POS Transactions"],
+        "summary": "Membatalkan/Refund Transaksi",
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["cancel_reason"],
+                "properties": {
+                  "cancel_reason": { "type": "string", "example": "Salah ketik jumlah item" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Transaksi berhasil dibatalkan." }
+        }
+      }
+    },
+    "/kitchen-orders": {
+      "sf/get": {
+        "tags": ["Kitchen display display"],
+        "summary": "Daftar Pesanan Dapur",
+        "description": "Mengambil antrean status pesanan untuk Kitchen Display System (KDS).",
+        "responses": {
+          "200": { "description": "Daftar antrean dapur." }
+        }
+      }
+    },
+    "/kitchen-orders/{id}/status": {
+      "patch": {
+        "tags": ["Kitchen display display"],
+        "summary": "Update status pesanan dapur",
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["status"],
+                "properties": {
+                  "status": { "type": "string", "example": "cooking" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Status dapur ter-update." }
+        }
+      }
+    },
+    "/recipes/{productId}": {
+      "get": {
+        "tags": ["Inventory / BOM recipes"],
+        "summary": "Lihat resep bahan baku produk",
+        "parameters": [
+          { "name": "productId", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": { "description": "Resep bahan baku." }
+        }
+      },
+      "post": {
+        "tags": ["Inventory / BOM recipes"],
+        "summary": "Buat/Update resep produk",
+        "parameters": [
+          { "name": "productId", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["ingredients"],
+                "properties": {
+                  "ingredients": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "required": ["ingredient_id", "quantity_used"],
+                      "properties": {
+                        "ingredient_id": { "type": "string", "example": "uuid-susu-cair" },
+                        "quantity_used": { "type": "number", "example": 150 }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Resep tersimpan." }
+        }
+      }
+    },
+    "/ingredients": {
+      "get": {
+        "tags": ["Bahan Mentah (Ingredients)"],
+        "summary": "Daftar stok bahan baku",
+        "responses": {
+          "200": { "description": "Daftar bahan baku." }
+        }
+      },
+      "post": {
+        "tags": ["Bahan Mentah (Ingredients)"],
+        "summary": "Tambah bahan baku mentah",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["name", "stock", "unit"],
+                "properties": {
+                  "name": { "type": "string", "example": "Susu Fresh Milk" },
+                  "stock": { "type": "number", "example": 5000 },
+                  "unit": { "type": "string", "example": "ml" },
+                  "min_stock": { "type": "number", "example": 500 }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": { "description": "Bahan baku ditambah." }
+        }
+      }
+    },
+    "/ingredients/{id}/adjust": {
+      "post": {
+        "tags": ["Bahan Mentah (Ingredients)"],
+        "summary": "Rekonsiliasi/Koreksi stok bahan baku manual",
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["adjustment_type", "amount", "notes"],
+                "properties": {
+                  "adjustment_type": { "type": "string", "example": "add" },
+                  "amount": { "type": "number", "example": 1000 },
+                  "notes": { "type": "string", "example": "Belanja bahan tambahan" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Stok berhasil disesuaikan." }
+        }
+      }
+    },
+    "/shifts/current": {
+      "get": {
+        "tags": ["Shift kasir"],
+        "summary": "Informasi Shift Kasir Saat Ini yang Sedang Aktif",
+        "responses": {
+          "200": { "description": "Data shift kasir aktif." }
+        }
+      }
+    },
+    "/shifts": {
+      "post": {
+        "tags": ["Shift kasir"],
+        "summary": "Buka Shift Baru (Input Uang Modal Awal)",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["starting_cash", "outlet_id"],
+                "properties": {
+                  "starting_cash": { "type": "integer", "example": 200000 },
+                  "outlet_id": { "type": "string", "example": "uuid-outlet" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": { "description": "Shift berhasil dibuka." }
+        }
+      }
+    },
+    "/shifts/{id}/close": {
+      "patch": {
+        "tags": ["Shift kasir"],
+        "summary": "Tutup Shift Kasir (Laporkan Uang Akhir Kas)",
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["actual_cash"],
+                "properties": {
+                  "actual_cash": { "type": "integer", "example": 1250000 },
+                  "notes": { "type": "string", "example": "Shift malam beres" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Shift ditutup." }
+        }
+      }
+    },
+    "/expenses": {
+      "get": {
+        "tags": ["Pengeluaran (Expenses)"],
+        "summary": "Histori Pengeluaran Toko",
+        "responses": {
+          "200": { "description": "Daftar pengeluaran." }
+        }
+      },
+      "post": {
+        "tags": ["Pengeluaran (Expenses)"],
+        "summary": "Catat pengeluaran baru",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["outlet_id", "category_id", "amount", "payment_method"],
+                "properties": {
+                  "outlet_id": { "type": "string", "example": "uuid-outlet" },
+                  "category_id": { "type": "string", "example": "uuid-kategori-pengeluaran" },
+                  "amount": { "type": "integer", "example": 120000 },
+                  "payment_method": { "type": "string", "example": "cash" },
+                  "reference_number": { "type": "string" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "210": { "description": "Pengeluaran dicatat." }
+        }
+      }
+    },
+    "/reports/daily": {
+      "get": {
+        "tags": ["Laporan Lanjutan (Reports)"],
+        "summary": "Ringkasan Penjualan Harian",
+        "responses": {
+          "200": { "description": "Laporan harian." }
+        }
+      }
+    },
+    "/reports/monthly": {
+      "get": {
+        "tags": ["Laporan Lanjutan (Reports)"],
+        "summary": "Ringkasan Penjualan Bulanan",
+        "responses": {
+          "200": { "description": "Laporan bulanan." }
+        }
+      }
+    },
+    "/reports/profit-loss": {
+      "get": {
+        "tags": ["Laporan Lanjutan (Reports)"],
+        "summary": "Laporan Laba Rugi Bersih",
+        "responses": {
+          "200": { "description": "Daftar Laba Rugi." }
+        }
+      }
+    },
+    "/reports/export-csv": {
+      "get": {
+        "tags": ["Laporan Lanjutan (Reports)"],
+        "summary": "Ekspor Transaksi format CSV",
+        "responses": {
+          "200": { "description": "CSV File payload." }
+        }
+      }
+    },
+    "/tables": {
+      "get": {
+        "tags": ["Dine-in Tables"],
+        "summary": "Daftar Meja Dine-in untuk Outlet",
+        "responses": {
+          "200": { "description": "Daftar meja." }
+        }
+      },
+      "post": {
+        "tags": ["Dine-in Tables"],
+        "summary": "Buat meja dine-in baru",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["name", "capacity", "outlet_id"],
+                "properties": {
+                  "name": { "type": "string", "example": "Meja 5" },
+                  "capacity": { "type": "integer", "example": 4 },
+                  "outlet_id": { "type": "string", "example": "uuid-outlet" },
+                  "floor": { "type": "string", "example": "Ground Floor" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": { "description": "Meja dine-in dibuat." }
+        }
+      }
+    },
+    "/tables/{id}/qr/generate": {
+      "post": {
+        "tags": ["Dine-in Tables"],
+        "summary": "Buat/Generate Token QR Order baru untuk meja",
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "201": { "description": "Token QR meja berhasil digenerate." }
+        }
+      }
+    },
+    "/tables/{id}/status": {
+      "patch": {
+        "tags": ["Dine-in Tables"],
+        "summary": "Ubah status meja dine-in secara manual",
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["status"],
+                "properties": {
+                  "status": { "type": "string", "example": "available" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Status meja diupdate." }
+        }
+      }
+    },
+    "/tickets": {
+      "get": {
+        "tags": ["Help Desk Tiket Support"],
+        "summary": "Daftar Tiket Dukungan Merchant",
+        "responses": {
+          "200": { "description": "Daftar tiket." }
+        }
+      },
+      "post": {
+        "tags": ["Help Desk Tiket Support"],
+        "summary": "Tulis Tiket Dukungan Baru",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["subject", "description"],
+                "properties": {
+                  "subject": { "type": "string", "example": "Masalah Sinkronisasi Bluetooth Printer" },
+                  "description": { "type": "string", "example": "Halo tim CS, printer struk saya tidak menyala dan tidak terdeteksi saat checkout..." }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": { "description": "Tiket support terkirim." }
+        }
+      }
+    },
+    "/chat/messages": {
+      "post": {
+        "tags": ["Help Desk Tiket Support"],
+        "summary": "Kirim pesan balasan chat dalam tiket support",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["ticket_id", "message"],
+                "properties": {
+                  "ticket_id": { "type": "integer", "example": 8 },
+                  "message": { "type": "string", "example": "Terima kasih responnya admin, sudah bisa menyala sekarang." }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": { "description": "Pesan chat berhasil dikirim." }
         }
       }
     }
