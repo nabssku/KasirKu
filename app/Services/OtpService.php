@@ -29,10 +29,32 @@ class OtpService
         ]);
 
         try {
-            Mail::to($email)->send(new OtpMail($code, $type, 10));
-            return true;
+            $response = \Illuminate\Support\Facades\Http::withToken(env('RESEND_API_KEY', 're_hsSXQ9MH_DKx6MCbwjKEN3hsPgsCPSdNB'))
+                ->post('https://api.resend.com/emails', [
+                    'from' => 'cs@jagokasir.store',
+                    'to' => $email,
+                    'subject' => '[' . $code . '] Kode Verifikasi JagoKasir',
+                    'html' => view('emails.otp', [
+                        'otp' => $code,
+                        'type' => $type,
+                        'expires' => 10,
+                        'title' => $type === 'registration' ? 'Verifikasi Pendaftaran Akun' : ($type === 'reset_password' ? 'Atur Ulang Kata Sandi' : 'Verifikasi Keamanan'),
+                        'description' => $type === 'registration' 
+                            ? 'Terima kasih telah bergabung dengan JagoKasir. Silakan gunakan kode di bawah ini untuk memverifikasi pendaftaran Anda.' 
+                            : ($type === 'reset_password' 
+                                ? 'Kami menerima permintaan untuk mengatur ulang kata sandi Anda. Gunakan kode verifikasi di bawah ini untuk melanjutkan.' 
+                                : 'Gunakan kode verifikasi di bawah ini untuk melanjutkan aksi keamanan Anda di JagoKasir.')
+                    ])->render()
+                ]);
+
+            if ($response->successful()) {
+                return true;
+            }
+            
+            \Illuminate\Support\Facades\Log::error('Resend API Fail: ' . $response->body());
+            return false;
         } catch (\Exception $e) {
-            \Illuminate\Support\Facades\Log::error('Failed to send OTP email: ' . $e->getMessage());
+            \Illuminate\Support\Facades\Log::error('Failed to send OTP email via Resend: ' . $e->getMessage());
             return false;
         }
     }
