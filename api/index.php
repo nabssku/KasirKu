@@ -6,6 +6,10 @@ if (getenv('VERCEL') || isset($_SERVER['VERCEL']) || isset($_ENV['VERCEL'])) {
     $_ENV['APP_CONFIG_CACHE'] = '/tmp/config.php';
     $_ENV['APP_ROUTES_CACHE'] = '/tmp/routes-v7.php';
     $_ENV['APP_EVENTS_CACHE'] = '/tmp/events.php';
+
+    // Force script name to /index.php to prevent Laravel from stripping /api prefix
+    // because the Vercel serverless entrypoint is physically located in /api/index.php
+    $_SERVER['SCRIPT_NAME'] = '/index.php';
 }
 
 // Forward Vercel request to Laravel public index
