@@ -33,8 +33,8 @@ class Tenant extends Model
 
     public function getStatusSubscriptionAttribute(): string
     {
-        // Try to get status from latest subscription, fallback to tenant status
-        return $this->latestSubscription?->status ?? $this->status;
+        // Try to get status from latest subscription, fallback to tenant status, or default to 'inactive'
+        return $this->latestSubscription?->status ?? ($this->status ?? 'inactive');
     }
 
     public function getStatusSubcriptionAttribute(): string
