@@ -134,7 +134,7 @@ class OutletPaymentMethodController extends Controller
         $outlet = Outlet::findOrFail($outletId);
         
         $methods = $outlet->paymentMethods()
-            ->whereRaw('outlet_payment_methods.is_enabled IS TRUE')
+            ->wherePivot('is_enabled', true)
             ->get();
 
         return response()->json([
