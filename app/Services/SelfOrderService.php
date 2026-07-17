@@ -429,7 +429,7 @@ class SelfOrderService
                 return [
                     'id'            => $item->id,
                     'product_name'  => $item->product?->name ?? $item->product_name,
-                    'image'         => $item->product?->image ? Storage::disk('public')->url($item->product->image) : null,
+                    'image'         => $item->product?->image ? (filter_var($item->product->image, FILTER_VALIDATE_URL) ? $item->product->image : Storage::disk('public')->url($item->product->image)) : null,
                     'quantity'      => $item->quantity,
                     'price'         => $item->price,
                 ];

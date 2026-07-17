@@ -7,6 +7,7 @@ use App\Repositories\Contracts\ProductRepositoryInterface;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
+use App\Services\CloudinaryService;
 
 class ProductService
 {
@@ -27,7 +28,7 @@ class ProductService
         $this->planLimit->enforce($tenantId, 'products');
 
         if (isset($data['image']) && $data['image'] instanceof UploadedFile) {
-            $data['image'] = $data['image']->store('products', 'public');
+            $data['image'] = CloudinaryService::upload($data['image'], 'products');
         }
 
         $modifierGroupIds = $data['modifier_group_ids'] ?? [];
@@ -56,7 +57,7 @@ class ProductService
                 if ($product->image) {
                     Storage::disk('public')->delete($product->image);
                 }
-                $data['image'] = $data['image']->store('products', 'public');
+                $data['image'] = CloudinaryService::upload($data['image'], 'products');
             } elseif (empty($data['image'])) {
                 // Explicitly removed
                 if ($product->image) {

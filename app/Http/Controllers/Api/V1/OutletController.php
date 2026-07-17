@@ -9,6 +9,7 @@ use App\Services\OutletService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
+use App\Services\CloudinaryService;
 
 class OutletController extends Controller
 {
@@ -109,8 +110,8 @@ class OutletController extends Controller
                 Storage::disk('public')->delete($oldPath);
             }
             
-            $path = $request->file('logo')->store('logos', 'public');
-            $settings['logo_url'] = Storage::disk('public')->url($path);
+            $logoUrl = CloudinaryService::upload($request->file('logo'), 'logos');
+            $settings['logo_url'] = $logoUrl;
         }
 
         // Merge the potentially updated settings back into the validated data

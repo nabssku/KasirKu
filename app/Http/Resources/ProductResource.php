@@ -22,7 +22,7 @@ class ProductResource extends JsonResource
             'cost_price'  => (float) $this->cost_price,
             'stock'       => $this->stock,
             'min_stock'   => $this->min_stock,
-            'image'       => $this->image ? Storage::disk('public')->url($this->image) : null,
+            'image'       => $this->image ? (filter_var($this->image, FILTER_VALIDATE_URL) ? $this->image : Storage::disk('public')->url($this->image)) : null,
             'is_active'   => $this->is_active,
             'is_low_stock'=> $this->stock <= $this->min_stock,
             'category'    => $this->whenLoaded('category', fn() => [

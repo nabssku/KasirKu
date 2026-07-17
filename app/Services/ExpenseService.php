@@ -7,6 +7,7 @@ use App\Models\ExpenseCategory;
 use App\Models\Shift;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use App\Services\CloudinaryService;
 
 class ExpenseService
 {
@@ -65,7 +66,7 @@ class ExpenseService
         return DB::transaction(function () use ($data) {
             // Handle file upload if present
             if (isset($data['attachment']) && $data['attachment'] instanceof \Illuminate\Http\UploadedFile) {
-                $path = $data['attachment']->store('expenses', 'public');
+                $path = CloudinaryService::upload($data['attachment'], 'expenses');
                 $data['attachment'] = $path;
             }
 
@@ -151,7 +152,7 @@ class ExpenseService
             if ($expense->attachment) {
                 Storage::disk('public')->delete($expense->attachment);
             }
-            $path = $data['attachment']->store('expenses', 'public');
+            $path = CloudinaryService::upload($data['attachment'], 'expenses');
             $data['attachment'] = $path;
         }
 
