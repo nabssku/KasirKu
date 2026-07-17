@@ -50,12 +50,12 @@ class AuthController extends Controller
             }
         }
 
-        $success = $this->otpService->generateAndSend(
+        $result = $this->otpService->generateAndSend(
             $validated['email'], 
             $type
         );
 
-        if ($success) {
+        if ($result['success']) {
             return response()->json([
                 'success' => true,
                 'message' => 'Kode OTP berhasil dikirim ke ' . $validated['email'],
@@ -64,7 +64,7 @@ class AuthController extends Controller
 
         return response()->json([
             'success' => false,
-            'message' => 'Gagal mengirim kode OTP. Silakan periksa konfigurasi email atau coba lagi nanti.',
+            'message' => 'Gagal mengirim kode OTP: ' . ($result['error'] ?? 'Silakan periksa konfigurasi email atau coba lagi nanti.'),
         ], 500);
     }
 

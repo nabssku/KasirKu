@@ -11,8 +11,10 @@ class OtpService
 {
     /**
      * Generate and send OTP to the given email.
+     * 
+     * @return array
      */
-    public function generateAndSend(string $email, string $type = 'registration'): bool
+    public function generateAndSend(string $email, string $type = 'registration'): array
     {
         // Delete any existing OTP for this email and type
         Otp::where('email', $email)->where('type', $type)->delete();
@@ -49,14 +51,14 @@ class OtpService
                 ]);
 
             if ($response->successful()) {
-                return true;
+                return ['success' => true];
             }
             
             \Illuminate\Support\Facades\Log::error('Resend API Fail: ' . $response->body());
-            return false;
+            return ['success' => false, 'error' => $response->json('message') ?? $response->body()];
         } catch (\Exception $e) {
             \Illuminate\Support\Facades\Log::error('Failed to send OTP email via Resend: ' . $e->getMessage());
-            return false;
+            return ['success' => false, 'error' => $e->getMessage()];
         }
     }
 
