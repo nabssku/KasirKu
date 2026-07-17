@@ -17,7 +17,7 @@ class RegisterTenantRequest extends FormRequest
         return [
             'tenant_name' => ['required', 'string', 'max:255'],
             'owner_name' => ['required', 'string', 'max:255'],
-            'email' => ['required', 'string', 'email', 'max:255', 'unique:users'],
+            'email' => ['required', 'string', 'email', 'max:255', 'unique:users', 'unique:tenants'],
             'password' => ['required', 'string', 'min:8', 'confirmed'],
             'domain' => ['nullable', 'string', 'unique:tenants'],
             'code' => ['required', 'string', 'size:6'],
