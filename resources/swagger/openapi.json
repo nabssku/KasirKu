@@ -1,0 +1,300 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "KasirKu API Documentation",
+    "version": "1.0.0",
+    "description": "Dokumentasi Lengkap API KasirKu POS (V1) - Backend Laravel Multi-Tenant."
+  },
+  "servers": [
+    {
+      "url": "/api/v1",
+      "description": "Server Utama / Relative"
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "jwt": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "description": "Masukkan Access Token JWT (Bearer)."
+      }
+    }
+  },
+  "security": [
+    {
+      "jwt": []
+    }
+  ],
+  "paths": {
+    "/auth/register": {
+      "post": {
+        "tags": ["Authentication"],
+        "summary": "Mendaftarkan tenant (bisnis) dan owner baru",
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["tenant_name", "owner_name", "email", "password", "password_confirmation", "domain"],
+                "properties": {
+                  "tenant_name": { "type": "string", "example": "Mariq Coffee" },
+                  "owner_name": { "type": "string", "example": "Nabil Sahsada" },
+                  "email": { "type": "string", "example": "owner@mariq.com" },
+                  "password": { "type": "string", "example": "password123" },
+                  "password_confirmation": { "type": "string", "example": "password123" },
+                  "domain": { "type": "string", "example": "mariq" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Tenant & Owner berhasil dideraftar."
+          }
+        }
+      }
+    },
+    "/auth/login": {
+      "post": {
+        "tags": ["Authentication"],
+        "summary": "Login Owner untuk mendapatkan token JWT",
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["email", "password"],
+                "properties": {
+                  "email": { "type": "string", "example": "owner@mariq.com" },
+                  "password": { "type": "string", "example": "password123" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Login sukses, mengembalikan token JWT."
+          }
+        }
+      }
+    },
+    "/auth/login-pin": {
+      "post": {
+        "tags": ["Authentication"],
+        "summary": "Login Staff menggunakan PIN cepat",
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["tenant_id", "email", "pin"],
+                "properties": {
+                  "tenant_id": { "type": "string", "example": "uuid-tenant-string" },
+                  "email": { "type": "string", "example": "kasir1@mariq.com" },
+                  "pin": { "type": "string", "example": "123456" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Login PIN berhasil."
+          }
+        }
+      }
+    },
+    "/products": {
+      "get": {
+        "tags": ["Products"],
+        "summary": "Mendapatkan daftar semua produk",
+        "responses": {
+          "200": {
+            "description": "Daftar produk berhasil diambil."
+          }
+        }
+      },
+      "post": {
+        "tags": ["Products"],
+        "summary": "Menambahkan produk baru",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["category_id", "name", "price", "stock"],
+                "properties": {
+                  "category_id": { "type": "string", "example": "uuid-kategori" },
+                  "name": { "type": "string", "example": "Coto Makassar Premium" },
+                  "price": { "type": "integer", "example": 25000 },
+                  "cost_price": { "type": "integer", "example": 15000 },
+                  "stock": { "type": "integer", "example": 50 },
+                  "min_stock": { "type": "integer", "example": 5 },
+                  "is_active": { "type": "boolean", "example": true }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Produk berhasil ditambahkan."
+          }
+        }
+      }
+    },
+    "/products/{id}": {
+      "get": {
+        "tags": ["Products"],
+        "summary": "Detail produk berdasarkan ID",
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": { "description": "Detail produk diambil." }
+        }
+      },
+      "put": {
+        "tags": ["Products"],
+        "summary": "Update data produk",
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": { "type": "string", "example": "Coto Makassar Spesial" },
+                  "price": { "type": "integer", "example": 28000 }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Produk diupdate." }
+        }
+      },
+      "delete": {
+        "tags": ["Products"],
+        "summary": "Hapus produk",
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": { "description": "Produk dihapus." }
+        }
+      }
+    },
+    "/categories": {
+      "get": {
+        "tags": ["Categories"],
+        "summary": "Daftar kategori produk",
+        "responses": {
+          "200": { "description": "Daftar kategori." }
+        }
+      },
+      "post": {
+        "tags": ["Categories"],
+        "summary": "Tambahkan kategori baru",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["name"],
+                "properties": {
+                  "name": { "type": "string", "example": "Makanan Berat" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": { "description": "Kategori dibuat." }
+        }
+      }
+    },
+    "/transactions": {
+      "get": {
+        "tags": ["POS Transactions"],
+        "summary": "Riwayat transaksi POS",
+        "responses": {
+          "200": { "description": "Daftar transaksi." }
+        }
+      },
+      "post": {
+        "tags": ["POS Transactions"],
+        "summary": "Buat transaksi penjualan baru (Checkout)",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["items", "paid_amount", "payment_method"],
+                "properties": {
+                  "items": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "required": ["product_id", "quantity", "price"],
+                      "properties": {
+                        "product_id": { "type": "string", "example": "uuid-produk-latte" },
+                        "quantity": { "type": "integer", "example": 2 },
+                        "price": { "type": "integer", "example": 25000 }
+                      }
+                    }
+                  },
+                  "customer_id": { "type": "string", "example": "uuid-pelanggan (opsional)" },
+                  "discount": { "type": "integer", "example": 5000 },
+                  "paid_amount": { "type": "integer", "example": 50000 },
+                  "payment_method": { "type": "string", "example": "cash" },
+                  "notes": { "type": "string", "example": "Pedas manis" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": { "description": "Transaksi diselesaikan." }
+        }
+      }
+    },
+    "/reports/daily": {
+      "get": {
+        "tags": ["Reports"],
+        "summary": "Laporan penjualan harian",
+        "parameters": [
+          { "name": "date", "in": "query", "required": false, "schema": { "type": "string", "example": "2026-07-17" } }
+        ],
+        "responses": {
+          "200": { "description": "Laporan harian diambil." }
+        }
+      }
+    },
+    "/reports/top-products": {
+      "get": {
+        "tags": ["Reports"],
+        "summary": "Daftar produk paling laris terjual",
+        "responses": {
+          "200": { "description": "Produk terlaris diambil." }
+        }
+      }
+    }
+  }
+}
