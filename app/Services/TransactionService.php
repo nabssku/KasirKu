@@ -25,161 +25,167 @@ class TransactionService
 
     public function createTransaction(TransactionDTO $dto): Transaction
     {
-        return DB::transaction(function () use ($dto) {
-            $user    = auth()->user();
-            $outlet  = $user->outlet;
+        DB::connection()->enableQueryLog();
+        try {
+            return DB::transaction(function () use ($dto) {
+                $user    = auth()->user();
+                $outlet  = $user->outlet;
 
-            // Check for active shift
-            $shiftId = $dto->shift_id;
-            if (!$shiftId && $user->outlet_id) {
-                $currentShift = Shift::where('outlet_id', $user->outlet_id)
-                    ->where('status', 'open')
-                    ->first();
-                $shiftId = $currentShift?->id;
-            }
-
-            if (!$shiftId) {
-                throw ValidationException::withMessages([
-                    'shift' => 'Transaksi tidak dapat dilakukan karena tidak ada shift yang dibuka. Silakan buka shift terlebih dahulu.'
-                ]);
-            }
-
-            $checkShift = Shift::find($shiftId);
-            if (!$checkShift || !$checkShift->isOpen()) {
-                throw ValidationException::withMessages([
-                    'shift' => 'Shift ini sudah ditutup. Silakan buka shift baru untuk melakukan transaksi.'
-                ]);
-            }
-
-            $taxRate = $outlet?->tax_rate ?? 10;
-            $scRate  = $outlet?->service_charge ?? 0;
-
-            $subtotal  = 0;
-            $itemsData = [];
-
-            foreach ($dto->items as $itemDto) {
-                $product      = Product::findOrFail($itemDto->product_id);
-                $itemSubtotal = ($itemDto->price * $itemDto->quantity) - $itemDto->discount;
-                $subtotal    += $itemSubtotal;
-
-                $itemsData[] = [
-                    'id'           => Str::uuid(),
-                    'tenant_id'    => $user->tenant_id,
-                    'product_id'   => $product->id,
-                    'product_name' => $product->name,
-                    'price'        => $itemDto->price,
-                    'quantity'     => $itemDto->quantity,
-                    'discount'     => $itemDto->discount,
-                    'subtotal'     => $itemSubtotal,
-                    'notes'        => $itemDto->notes,
-                    'modifiers'    => $itemDto->modifiers ?? [],
-                ];
-
-                // Decrement simple product stock (non-recipe products)
-                if (!$product->has_recipe) {
-                    $product->decrement('stock', $itemDto->quantity);
+                // Check for active shift
+                $shiftId = $dto->shift_id;
+                if (!$shiftId && $user->outlet_id) {
+                    $currentShift = Shift::where('outlet_id', $user->outlet_id)
+                        ->where('status', 'open')
+                        ->first();
+                    $shiftId = $currentShift?->id;
                 }
-            }
 
-            $tax            = $subtotal * ($taxRate / 100);
-            $serviceCharge  = $subtotal * ($scRate / 100);
-            $grandTotal     = ($subtotal + $tax + $serviceCharge) - (float) ($dto->discount ?? 0);
-
-            // Determine total paid from split payments
-            $totalPaid = collect($dto->payments ?? [])->sum('amount');
-            if (empty($dto->payments)) {
-                $totalPaid = $dto->paid_amount ?? $grandTotal;
-            }
-
-            // 1. Create Transaction
-            $transaction = $this->repository->create([
-                'tenant_id'      => $user->tenant_id,
-                'outlet_id'      => $user->outlet_id,
-                'user_id'        => $user->id,
-                'customer_id'    => $dto->customer_id,
-                'table_id'       => $dto->table_id,
-                'shift_id'       => $shiftId,
-                'invoice_number' => $this->repository->generateInvoiceNumber($user->outlet_id),
-                'type'           => $dto->type ?? 'dine_in',
-                'subtotal'       => $subtotal,
-                'tax_rate'       => $taxRate,
-                'tax'            => $tax,
-                'service_charge' => $serviceCharge,
-                'discount'       => $dto->discount ?? 0,
-                'grand_total'    => $grandTotal,
-                'paid_amount'    => $dto->status === 'pending' ? 0 : $totalPaid,
-                'change_amount'  => $dto->status === 'pending' ? 0 : max(0, $totalPaid - $grandTotal),
-                'status'         => $dto->status ?? 'completed',
-                'notes'          => $dto->notes,
-            ]);
-
-            // 2. Create Items + Modifiers
-            foreach ($itemsData as $itemData) {
-                $modifiers = $itemData['modifiers'];
-                unset($itemData['modifiers']);
-                $itemData['transaction_id'] = $transaction->id;
-
-                $txItem = TransactionItem::create($itemData);
-
-                foreach ($modifiers as $modifierData) {
-                    // Check if the relation/method exists or just skip if not defined to avoid crash
-                    if (method_exists($txItem, 'modifiers')) {
-                        $txItem->modifiers()->create([
-                            'modifier_id'   => $modifierData['modifier_id'],
-                            'modifier_name' => $modifierData['modifier_name'] ?? $modifierData['name'],
-                            'price'         => $modifierData['price'] ?? 0,
-                        ]);
-                    }
-                }
-            }
-
-            // 3. Create Payments (supports split payment) - Skip if pending
-            if ($transaction->status !== 'pending') {
-                if (!empty($dto->payments)) {
-                    foreach ($dto->payments as $paymentData) {
-                        Payment::create([
-                            'tenant_id'        => $user->tenant_id,
-                            'transaction_id'   => $transaction->id,
-                            'payment_method'   => $paymentData['method'],
-                            'payment_method_name' => $paymentData['name'] ?? null,
-                            'amount'           => $paymentData['amount'],
-                            'payment_reference' => $paymentData['reference'] ?? null,
-                            'paid_at'          => now(),
-                        ]);
-                    }
-                } else {
-                    Payment::create([
-                        'tenant_id'      => $user->tenant_id,
-                        'transaction_id' => $transaction->id,
-                        'payment_method' => $dto->payment_method,
-                        'payment_method_name' => $dto->payment_method_name,
-                        'amount'         => $totalPaid,
-                        'paid_at'        => now(),
+                if (!$shiftId) {
+                    throw ValidationException::withMessages([
+                        'shift' => 'Transaksi tidak dapat dilakukan karena tidak ada shift yang dibuka. Silakan buka shift terlebih dahulu.'
                     ]);
                 }
 
-                // 4. Deduct ingredient stock via recipe (Only if completed)
-                $transaction->load('items');
-                $this->inventoryService->deductByTransaction($transaction);
-            }
+                $checkShift = Shift::find($shiftId);
+                if (!$checkShift || !$checkShift->isOpen()) {
+                    throw ValidationException::withMessages([
+                        'shift' => 'Shift ini sudah ditutup. Silakan buka shift baru untuk melakukan transaksi.'
+                    ]);
+                }
 
-            // 4. Update table status to occupied (if dine_in and table select)
-            if ($dto->table_id && $dto->type === 'dine_in') {
-                RestaurantTable::where('id', $dto->table_id)->update(['status' => 'occupied']);
-            }
+                $taxRate = $outlet?->tax_rate ?? 10;
+                $scRate  = $outlet?->service_charge ?? 0;
 
-            // 6. Create kitchen order (Keep this if we want kitchen to receive pending orders, 
-            // but usually they wait for completion. However, in some POS, "Send to Kitchen" is a separate step.
-            // For now, let's keep it if pending? Actually, let's skip for pending unless specified.
-            // The request says "simpan sementara", so kitchen probably shouldn't receive it yet.
-            if ($transaction->status !== 'pending') {
-                $this->kitchenOrderService->createFromTransaction($transaction);
-                // 7. Fire event
-                event(new TransactionCompleted($transaction));
-            }
+                $subtotal  = 0;
+                $itemsData = [];
 
-            return $transaction->load(['items', 'customer', 'payments', 'kitchenOrder']);
-        });
+                foreach ($dto->items as $itemDto) {
+                    $product = Product::findOrFail($itemDto->product_id);
+                    $itemSubtotal = ($itemDto->price * $itemDto->quantity) - $itemDto->discount;
+                    $subtotal    += $itemSubtotal;
+
+                    $itemsData[] = [
+                        'id'           => Str::uuid(),
+                        'tenant_id'    => $user->tenant_id,
+                        'product_id'   => $product->id,
+                        'product_name' => $product->name,
+                        'price'        => $itemDto->price,
+                        'quantity'     => $itemDto->quantity,
+                        'discount'     => $itemDto->discount,
+                        'subtotal'     => $itemSubtotal,
+                        'notes'        => $itemDto->notes,
+                        'modifiers'    => $itemDto->modifiers ?? [],
+                    ];
+
+                    // Decrement simple product stock (non-recipe products)
+                    if (!$product->has_recipe) {
+                        $product->decrement('stock', $itemDto->quantity);
+                    }
+                }
+
+                $tax            = $subtotal * ($taxRate / 100);
+                $serviceCharge  = $subtotal * ($scRate / 100);
+                $grandTotal     = ($subtotal + $tax + $serviceCharge) - (float) ($dto->discount ?? 0);
+
+                // Determine total paid from split payments
+                $totalPaid = collect($dto->payments ?? [])->sum('amount');
+                if (empty($dto->payments)) {
+                    $totalPaid = $dto->paid_amount ?? $grandTotal;
+                }
+
+                // 1. Create Transaction
+                $transaction = $this->repository->create([
+                    'tenant_id'      => $user->tenant_id,
+                    'outlet_id'      => $user->outlet_id,
+                    'user_id'        => $user->id,
+                    'customer_id'    => $dto->customer_id,
+                    'table_id'       => $dto->table_id,
+                    'shift_id'       => $shiftId,
+                    'invoice_number' => $this->repository->generateInvoiceNumber($user->outlet_id),
+                    'type'           => $dto->type ?? 'dine_in',
+                    'subtotal'       => $subtotal,
+                    'tax_rate'       => $taxRate,
+                    'tax'            => $tax,
+                    'service_charge' => $serviceCharge,
+                    'discount'       => $dto->discount ?? 0,
+                    'grand_total'    => $grandTotal,
+                    'paid_amount'    => $dto->status === 'pending' ? 0 : $totalPaid,
+                    'change_amount'  => $dto->status === 'pending' ? 0 : max(0, $totalPaid - $grandTotal),
+                    'status'         => $dto->status ?? 'completed',
+                    'notes'          => $dto->notes,
+                ]);
+
+                // 2. Create Items + Modifiers
+                foreach ($itemsData as $itemData) {
+                    $modifiers = $itemData['modifiers'];
+                    unset($itemData['modifiers']);
+                    $itemData['transaction_id'] = $transaction->id;
+
+                    $txItem = TransactionItem::create($itemData);
+
+                    foreach ($modifiers as $modifierData) {
+                        // Check if the relation/method exists or just skip if not defined to avoid crash
+                        if (method_exists($txItem, 'modifiers')) {
+                            $txItem->modifiers()->create([
+                                'modifier_id'   => $modifierData['modifier_id'],
+                                'modifier_name' => $modifierData['modifier_name'] ?? $modifierData['name'],
+                                'price'         => $modifierData['price'] ?? 0,
+                            ]);
+                        }
+                    }
+                }
+
+                // 3. Create Payments (supports split payment) - Skip if pending
+                if ($transaction->status !== 'pending') {
+                    if (!empty($dto->payments)) {
+                        foreach ($dto->payments as $paymentData) {
+                            Payment::create([
+                                'tenant_id'        => $user->tenant_id,
+                                'transaction_id'   => $transaction->id,
+                                'payment_method'   => $paymentData['method'],
+                                'payment_method_name' => $paymentData['name'] ?? null,
+                                'amount'           => $paymentData['amount'],
+                                'payment_reference' => $paymentData['reference'] ?? null,
+                                'paid_at'          => now(),
+                            ]);
+                        }
+                    } else {
+                        Payment::create([
+                            'tenant_id'      => $user->tenant_id,
+                            'transaction_id' => $transaction->id,
+                            'payment_method' => $dto->payment_method,
+                            'payment_method_name' => $dto->payment_method_name,
+                            'amount'         => $totalPaid,
+                            'paid_at'        => now(),
+                        ]);
+                    }
+
+                    // 4. Deduct ingredient stock via recipe (Only if completed)
+                    $transaction->load('items');
+                    $this->inventoryService->deductByTransaction($transaction);
+                }
+
+                // 4. Update table status to occupied (if dine_in and table select)
+                if ($dto->table_id && $dto->type === 'dine_in') {
+                    RestaurantTable::where('id', $dto->table_id)->update(['status' => 'occupied']);
+                }
+
+                // 6. Create kitchen order (Keep this if we want kitchen to receive pending orders, 
+                // but usually they wait for completion. However, in some POS, "Send to Kitchen" is a separate step.
+                // For now, let's keep it if pending? Actually, let's skip for pending unless specified.
+                // The request says "simpan sementara", so kitchen probably shouldn't receive it yet.
+                if ($transaction->status !== 'pending') {
+                    $this->kitchenOrderService->createFromTransaction($transaction);
+                    // 7. Fire event
+                    event(new TransactionCompleted($transaction));
+                }
+
+                return $transaction->load(['items', 'customer', 'payments', 'kitchenOrder']);
+            });
+        } catch (\Exception $e) {
+            $queryLog = DB::getQueryLog();
+            throw new \Exception("Transaction Error: " . $e->getMessage() . " | Query Log: " . json_encode($queryLog) . " in " . $e->getFile() . ":" . $e->getLine());
+        }
     }
 
     public function updateTransaction(string $id, TransactionDTO $dto): Transaction
