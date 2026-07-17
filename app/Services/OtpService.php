@@ -29,9 +29,10 @@ class OtpService
         ]);
 
         try {
-            $response = \Illuminate\Support\Facades\Http::withToken(env('RESEND_API_KEY', 're_hsSXQ9MH_DKx6MCbwjKEN3hsPgsCPSdNB'))
+            $fromEmail = env('RESEND_FROM_EMAIL', 'onboarding@resend.dev');
+            $response = \Illuminate\Support\Facades\Http::withToken(env('RESEND_API_KEY', 're_EkgFNwNi_PKXidvg3QUFEvsZct7XmqfJk'))
                 ->post('https://api.resend.com/emails', [
-                    'from' => 'cs@jagokasir.store',
+                    'from' => $fromEmail,
                     'to' => $email,
                     'subject' => '[' . $code . '] Kode Verifikasi JagoKasir',
                     'html' => view('emails.otp', [
