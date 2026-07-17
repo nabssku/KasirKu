@@ -378,12 +378,13 @@ Route::prefix('v1')->group(function () {
             Route::put('/payment', [PaymentSettingController::class, 'updateTenantSettings']);
         });
 
-        // ── Onboarding ────────────────────────────────────────────────────────
-        Route::prefix('onboarding')->group(function () {
-            Route::get('/templates',    [\App\Http\Controllers\Api\V1\OnboardingController::class, 'templates']);
-            Route::post('/import',      [\App\Http\Controllers\Api\V1\OnboardingController::class, 'import']);
-            Route::post('/complete',    [\App\Http\Controllers\Api\V1\OnboardingController::class, 'complete']);
-        });
+    });
+
+    // ── Onboarding (accessible by auth tenant users without requiring active subscription)
+    Route::middleware(['auth:api', 'tenant'])->prefix('onboarding')->group(function () {
+        Route::get('/templates',    [\App\Http\Controllers\Api\V1\OnboardingController::class, 'templates']);
+        Route::post('/import',      [\App\Http\Controllers\Api\V1\OnboardingController::class, 'import']);
+        Route::post('/complete',    [\App\Http\Controllers\Api\V1\OnboardingController::class, 'complete']);
     });
 });
 
