@@ -87,7 +87,15 @@ class TransactionController extends Controller
         ]);
 
         $dto = TransactionDTO::fromRequest($validated);
-        $transaction = $this->transactionService->createTransaction($dto);
+        try {
+            $transaction = $this->transactionService->createTransaction($dto);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ], 500);
+        }
 
         return response()->json([
             'success' => true,
