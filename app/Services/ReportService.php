@@ -114,7 +114,7 @@ class ReportService
             fputcsv($handle, [
                 $transaction->invoice_number,
                 $transaction->created_at->format('Y-m-d H:i:s'),
-                $transaction->user->name,
+                $transaction->user?->name ?? 'System/Self-Order',
                 $transaction->customer?->name ?? 'N/A',
                 $transaction->subtotal,
                 $transaction->tax,
@@ -225,7 +225,7 @@ class ReportService
             ->map(fn($tx) => [
                 'id' => $tx->id,
                 'invoice_number' => $tx->invoice_number,
-                'cashier_name' => $tx->user->name,
+                'cashier_name' => $tx->user?->name ?? 'System/Self-Order',
                 'grand_total' => (float) $tx->grand_total,
                 'status' => $tx->status,
                 'cancel_reason' => $tx->cancel_reason,
