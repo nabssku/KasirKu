@@ -199,7 +199,7 @@ Route::prefix('v1')->group(function () {
         // ── Products (Admin+) ─────────────────────────────────────────────────
         Route::middleware('role:super_admin,owner,admin')->group(function () {
             Route::post('/products',    [ProductController::class, 'store'])->middleware('plan.limit:products,max_products');
-            Route::put('/products/{product}',     [ProductController::class, 'update']);
+            Route::match(['put', 'post'], '/products/{product}', [ProductController::class, 'update']);
             Route::delete('/products/{product}',  [ProductController::class, 'destroy']);
         });
         Route::apiResource('products', ProductController::class)->only(['index', 'show']);

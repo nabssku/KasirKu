@@ -22,7 +22,11 @@ class UpdateProductRequest extends FormRequest
             'cost_price'   => ['sometimes', 'nullable', 'numeric', 'min:0'],
             'stock'        => ['sometimes', 'integer', 'min:0'],
             'min_stock'    => ['sometimes', 'nullable', 'integer', 'min:0'],
-            'image'        => ['sometimes', 'nullable', 'image', 'mimes:jpeg,png,jpg,gif', 'max:2048'],
+            'image'        => ['sometimes', 'nullable', function ($attribute, $value, $fail) {
+                if (!is_string($value) && !($value instanceof \Illuminate\Http\UploadedFile)) {
+                    $fail('The '.$attribute.' must be an image file or string.');
+                }
+            }],
             'is_active'    => ['sometimes', 'nullable', 'boolean'],
             'modifier_group_ids' => ['nullable', 'array'],
             'modifier_group_ids.*' => ['uuid', 'exists:modifier_groups,id'],

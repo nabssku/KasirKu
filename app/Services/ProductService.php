@@ -28,7 +28,13 @@ class ProductService
         $this->planLimit->enforce($tenantId, 'products');
 
         if (isset($data['image']) && $data['image'] instanceof UploadedFile) {
-            $data['image'] = CloudinaryService::upload($data['image'], 'products');
+            $uploadedUrl = CloudinaryService::upload($data['image'], 'products');
+            if ($uploadedUrl) {
+                $data['image'] = $uploadedUrl;
+            } else {
+                $path = $data['image']->store('products', 'public');
+                $data['image'] = Storage::url($path);
+            }
         }
 
         $modifierGroupIds = $data['modifier_group_ids'] ?? [];
@@ -53,17 +59,27 @@ class ProductService
 
         if (array_key_exists('image', $data)) {
             if ($data['image'] instanceof UploadedFile) {
-                // Delete old image if exists
-                if ($product->image) {
-                    Storage::disk('public')->delete($product->image);
+                // Delete old image if it was stored locally
+                if ($product->image && !str_contains($product->image, 'cloudinary.com')) {
+                    Storage::disk('public')->delete(str_replace('/storage/', '', $product->image));
                 }
-                $data['image'] = CloudinaryService::upload($data['image'], 'products');
-            } elseif (empty($data['image'])) {
+                $uploadedUrl = CloudinaryService::upload($data['image'], 'products');
+                if ($uploadedUrl) {
+                    $data['image'] = $uploadedUrl;
+                } else {
+                    $path = $data['image']->store('products', 'public');
+                    $data['image'] = Storage::url($path);
+                }
+            } elseif (is_string($data['image']) && trim($data['image']) === '') {
                 // Explicitly removed
-                if ($product->image) {
-                    Storage::disk('public')->delete($product->image);
+                if ($product->image && !str_contains($product->image, 'cloudinary.com')) {
+                    Storage::disk('public')->delete(str_replace('/storage/', '', $product->image));
                 }
                 $data['image'] = null;
+            } elseif (is_string($data['image']) && !empty($data['image'])) {
+                // Keep existing image URL
+            } else {
+                unset($data['image']);
             }
         }
 
