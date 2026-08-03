@@ -57,27 +57,31 @@ class ProductService
             return false;
         }
 
-        if (array_key_exists('image', $data)) {
-            if ($data['image'] instanceof UploadedFile) {
+        $removeImage = isset($data['remove_image']) || (request()->has('remove_image') && request()->input('remove_image') === '1');
+        unset($data['remove_image']);
+
+        if (array_key_exists('image', $data) || $removeImage) {
+            $imageInput = $data['image'] ?? null;
+            if ($imageInput instanceof UploadedFile) {
                 // Delete old image if it was stored locally
                 if ($product->image && !str_contains($product->image, 'cloudinary.com')) {
                     Storage::disk('public')->delete(str_replace('/storage/', '', $product->image));
                 }
-                $uploadedUrl = CloudinaryService::upload($data['image'], 'products');
+                $uploadedUrl = CloudinaryService::upload($imageInput, 'products');
                 if ($uploadedUrl) {
                     $data['image'] = $uploadedUrl;
                 } else {
-                    $path = $data['image']->store('products', 'public');
+                    $path = $imageInput->store('products', 'public');
                     $data['image'] = Storage::url($path);
                 }
-            } elseif (is_string($data['image']) && trim($data['image']) === '') {
-                // Explicitly removed
+            } elseif ($removeImage || (is_string($imageInput) && trim($imageInput) === '') || $imageInput === null) {
+                // Explicitly removed image
                 if ($product->image && !str_contains($product->image, 'cloudinary.com')) {
                     Storage::disk('public')->delete(str_replace('/storage/', '', $product->image));
                 }
                 $data['image'] = null;
-            } elseif (is_string($data['image']) && !empty($data['image'])) {
-                // Keep existing image URL
+            } elseif (is_string($imageInput) && !empty($imageInput)) {
+                $data['image'] = $imageInput;
             } else {
                 unset($data['image']);
             }

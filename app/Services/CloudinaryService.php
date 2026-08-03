@@ -21,8 +21,17 @@ class CloudinaryService
         $apiKey = env('CLOUDINARY_API_KEY');
         $apiSecret = env('CLOUDINARY_API_SECRET');
 
-        if (!$cloudName || !$apiKey || !$apiSecret) {
-            Log::error('Cloudinary credentials missing in .env');
+        $cloudinaryUrl = env('CLOUDINARY_URL');
+        if ($cloudinaryUrl && (!$cloudName || !$apiKey || !$apiSecret || $cloudName === 'your_cloud_name')) {
+            if (preg_match('/cloudinary:\/\/([^:]+):([^@]+)@(.+)/i', $cloudinaryUrl, $matches)) {
+                $apiKey = trim($matches[1]);
+                $apiSecret = trim($matches[2]);
+                $cloudName = trim($matches[3]);
+            }
+        }
+
+        if (!$cloudName || !$apiKey || !$apiSecret || $cloudName === 'your_cloud_name') {
+            Log::error('Cloudinary credentials missing or unconfigured in .env');
             return null;
         }
 

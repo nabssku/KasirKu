@@ -27,6 +27,7 @@ class UpdateProductRequest extends FormRequest
                     $fail('The '.$attribute.' must be an image file or string.');
                 }
             }],
+            'remove_image' => ['sometimes', 'nullable', 'string'],
             'is_active'    => ['sometimes', 'nullable', 'boolean'],
             'modifier_group_ids' => ['nullable', 'array'],
             'modifier_group_ids.*' => ['uuid', 'exists:modifier_groups,id'],
