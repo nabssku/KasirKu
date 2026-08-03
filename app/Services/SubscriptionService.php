@@ -21,11 +21,24 @@ class SubscriptionService
 
     public function getActive(string $tenantId): ?Subscription
     {
-        return Subscription::with('plan')
+        $subscription = Subscription::with('plan')
             ->where('tenant_id', $tenantId)
-            ->whereIn('status', ['trial', 'active'])
             ->latest()
             ->first();
+
+        if ($subscription) {
+            if (!$subscription->isActive()) {
+                if ($subscription->status !== 'expired' && $subscription->status !== 'cancelled') {
+                    $subscription->update(['status' => 'expired']);
+                    $tenant = Tenant::find($tenantId);
+                    if ($tenant && $tenant->status !== 'expired') {
+                        $tenant->update(['status' => 'expired']);
+                    }
+                }
+            }
+        }
+
+        return $subscription;
     }
 
     public function startTrial(Tenant $tenant, ?int $planId = null): Subscription

@@ -57,11 +57,10 @@ class AppServiceProvider extends ServiceProvider
                 return true;
             }
 
-            $tenant = \App\Models\Tenant::find($user->tenant_id);
-            if (!$tenant) return false;
+            if (!$user->tenant_id) return false;
             
-            return ($tenant->trial_ends_at && $tenant->trial_ends_at > now()) || 
-                   ($tenant->subscription_ends_at && $tenant->subscription_ends_at > now());
+            $sub = app(\App\Services\SubscriptionService::class)->getActive($user->tenant_id);
+            return $sub ? $sub->isActive() : false;
         });
 
         \App\Models\Product::observe(\App\Observers\ProductObserver::class);
