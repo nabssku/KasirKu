@@ -15,19 +15,22 @@ class TenantMiddleware
      */
     public function handle(Request $request, Closure $next): Response
     {
-        // Super admin operates without tenant scope
-        if (auth()->check() && auth()->user()->hasRole('super_admin')) {
-            return $next($request);
-        }
+        if (auth()->check()) {
+            $user = auth()->user();
 
-        $tenantId = $request->header('X-Tenant-Id');
-
-        if (!$tenantId && auth()->check()) {
-            $tenantId = auth()->user()->tenant_id;
-        }
-
-        if ($tenantId) {
-            app()->instance('current_tenant_id', $tenantId);
+            if ($user->hasRole('super_admin')) {
+                // Super admin can optionally specify tenant scope via X-Tenant-Id header
+                $tenantId = $request->header('X-Tenant-Id') ?? $user->tenant_id;
+                if ($tenantId) {
+                    app()->instance('current_tenant_id', $tenantId);
+                }
+            } else {
+                // Non-super-admin users are strictly locked to their own tenant_id
+                $tenantId = $user->tenant_id;
+                if ($tenantId) {
+                    app()->instance('current_tenant_id', $tenantId);
+                }
+            }
         }
 
         return $next($request);

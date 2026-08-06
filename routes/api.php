@@ -38,14 +38,16 @@ Broadcast::routes(['middleware' => ['auth:api']]);
 Route::prefix('v1')->group(function () {
     Route::get('/app-version/latest', [\App\Http\Controllers\Api\V1\AppVersionController::class, 'latest']);
 
-    // ─── Public Auth Routes ───────────────────────────────────────────────────
-    Route::post('/auth/register', [AuthController::class, 'register']);
-    Route::post('/auth/login',    [AuthController::class, 'login']);
-    Route::post('/auth/login-pin', [AuthController::class, 'loginPin']);
-    Route::post('/auth/refresh',  [AuthController::class, 'refresh']);
-    Route::post('/auth/otp/send',   [AuthController::class, 'sendOtp']);
-    Route::post('/auth/otp/verify', [AuthController::class, 'verifyOtp']);
-    Route::post('/auth/reset-password', [AuthController::class, 'resetPassword']);
+    // ─── Public Auth Routes (Rate Limited) ───────────────────────────────────
+    Route::middleware('throttle:10,1')->group(function () {
+        Route::post('/auth/register',       [AuthController::class, 'register']);
+        Route::post('/auth/login',          [AuthController::class, 'login']);
+        Route::post('/auth/login-pin',      [AuthController::class, 'loginPin'])->middleware('throttle:5,1');
+        Route::post('/auth/refresh',        [AuthController::class, 'refresh']);
+        Route::post('/auth/otp/send',       [AuthController::class, 'sendOtp'])->middleware('throttle:3,1');
+        Route::post('/auth/otp/verify',     [AuthController::class, 'verifyOtp'])->middleware('throttle:5,1');
+        Route::post('/auth/reset-password', [AuthController::class, 'resetPassword'])->middleware('throttle:5,1');
+    });
 
     // ─── Payment Webhooks ────────────────────────────────────────────────────
     Route::post('/webhooks/midtrans', [WebhookController::class, 'midtrans']);
@@ -63,7 +65,7 @@ Route::prefix('v1')->group(function () {
     });
 
     // ─── PIN Login Public Staff List ─────────────────────────────────────────
-    Route::get('/public/tenants/{tenant_id}/staff', function($tenantId) {
+    Route::middleware('throttle:15,1')->get('/public/tenants/{tenant_id}/staff', function($tenantId) {
         $users = \App\Models\User::where('tenant_id', $tenantId)
             ->where('pin_enabled', true)
             ->where('is_active', true)

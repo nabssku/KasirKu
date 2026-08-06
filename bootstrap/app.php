@@ -13,6 +13,9 @@ $app = Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        // Trust Vercel / Cloudflare Reverse Proxies so HTTPS scheme is preserved
+        $middleware->trustProxies(at: '*');
+
         $middleware->api(prepend: [
             // \Laravel\Sanctum\Http\Middleware\EnsureFrontendRequestsAreStateful::class,
         ]);
@@ -26,11 +29,15 @@ $app = Application::configure(basePath: dirname(__DIR__))
             'plan.limit'   => \App\Http\Middleware\CheckPlanLimit::class,
             'feature'      => \App\Http\Middleware\CheckFeatureAccess::class,
         ]);
-
-        //
     })
     ->withExceptions(function (Exceptions $exceptions): void {
-        //
+        // Ensure API requests always return JSON instead of 302 redirects
+        $exceptions->shouldRenderJsonWhen(function ($request, $e) {
+            if ($request->is('api/*')) {
+                return true;
+            }
+            return $request->expectsJson();
+        });
     })->create();
 
 if (getenv('VERCEL') || isset($_SERVER['VERCEL']) || isset($_ENV['VERCEL'])) {

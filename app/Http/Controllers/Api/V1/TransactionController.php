@@ -90,10 +90,13 @@ class TransactionController extends Controller
         try {
             $transaction = $this->transactionService->createTransaction($dto);
         } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('Transaction creation error: ' . $e->getMessage(), [
+                'exception' => $e
+            ]);
+
             return response()->json([
                 'success' => false,
-                'message' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
+                'message' => config('app.debug') ? $e->getMessage() : 'Gagal memproses transaksi.',
             ], 500);
         }
 
