@@ -3,6 +3,7 @@
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
+use Illuminate\Http\Exceptions\ThrottleRequestsException;
 
 $app = Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -31,6 +32,16 @@ $app = Application::configure(basePath: dirname(__DIR__))
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
+        // Custom clean JSON response for rate limiting (429 Too Many Requests)
+        $exceptions->render(function (ThrottleRequestsException $e, $request) {
+            if ($request->is('api/*') || $request->expectsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Terlalu banyak percobaan. Silakan coba lagi beberapa saat lagi.',
+                ], 429);
+            }
+        });
+
         // Ensure API requests always return JSON instead of 302 redirects
         $exceptions->shouldRenderJsonWhen(function ($request, $e) {
             if ($request->is('api/*')) {
