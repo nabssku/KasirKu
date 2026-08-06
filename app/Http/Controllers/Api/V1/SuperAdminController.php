@@ -112,6 +112,13 @@ class SuperAdminController extends Controller
 
         $tenant->update($validated);
 
+        if (isset($validated['status']) && in_array($validated['status'], ['inactive', 'suspended'])) {
+            Subscription::withoutGlobalScopes()
+                ->where('tenant_id', $tenant->id)
+                ->whereIn('status', ['active', 'trial'])
+                ->update(['status' => $validated['status']]);
+        }
+
         event(new \App\Events\PlatformStatsUpdated());
 
         return response()->json([
@@ -169,7 +176,7 @@ class SuperAdminController extends Controller
     public function subscriptions(Request $request): JsonResponse
     {
         $query = Subscription::withoutGlobalScopes()
-            ->with(['tenant', 'plan']);
+            ->with(['tenant' => fn($q) => $q->withTrashed(), 'plan']);
 
         if ($request->filled('status')) {
             $query->where('status', $request->input('status'));
@@ -182,8 +189,10 @@ class SuperAdminController extends Controller
         if ($request->filled('search')) {
             $search = $request->input('search');
             $query->whereHas('tenant', function ($q) use ($search) {
-                $q->where('name', 'like', "%{$search}%")
-                  ->orWhere('email', 'like', "%{$search}%");
+                $q->withTrashed()->where(function ($q2) use ($search) {
+                    $q2->where('name', 'like', "%{$search}%")
+                      ->orWhere('email', 'like', "%{$search}%");
+                });
             });
         }
 

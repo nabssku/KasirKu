@@ -52,7 +52,7 @@ class User extends Authenticatable implements JWTSubject
 
     public function tenant(): BelongsTo
     {
-        return $this->belongsTo(Tenant::class);
+        return $this->belongsTo(Tenant::class)->withTrashed();
     }
 
     public function outlet(): BelongsTo

@@ -30,7 +30,7 @@ class Subscription extends Model
 
     public function tenant(): BelongsTo
     {
-        return $this->belongsTo(Tenant::class);
+        return $this->belongsTo(Tenant::class)->withTrashed();
     }
 
     public function plan(): BelongsTo
