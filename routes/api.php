@@ -5,6 +5,10 @@ use App\Http\Controllers\Api\V1\BluetoothPrinterController;
 use App\Http\Controllers\Api\V1\CategoryController;
 use App\Http\Controllers\Api\V1\CustomerController;
 use App\Http\Controllers\Api\V1\IngredientController;
+use App\Http\Controllers\Api\V1\StockMovementController;
+use App\Http\Controllers\Api\V1\SupplierController;
+use App\Http\Controllers\Api\V1\PurchaseOrderController;
+
 use App\Http\Controllers\Api\V1\KitchenOrderController;
 use App\Http\Controllers\Api\V1\ModifierController;
 use App\Http\Controllers\Api\V1\OutletController;
@@ -253,6 +257,16 @@ Route::prefix('v1')->group(function () {
             Route::put('/ingredients/{ingredient}', [IngredientController::class, 'update']);
             Route::delete('/ingredients/{ingredient}', [IngredientController::class, 'destroy']);
             Route::post('/ingredients/{id}/adjust', [IngredientController::class, 'adjustStock']);
+
+            // JagoGudang API Routes
+            Route::get('/stock-movements',              [StockMovementController::class, 'index']);
+            Route::post('/stock-movements',             [StockMovementController::class, 'store']);
+            Route::get('/suppliers',                    [SupplierController::class, 'index']);
+            Route::post('/suppliers',                   [SupplierController::class, 'store']);
+            Route::get('/purchase-orders',              [PurchaseOrderController::class, 'index']);
+            Route::post('/purchase-orders',             [PurchaseOrderController::class, 'store']);
+            Route::patch('/purchase-orders/{id}/status', [PurchaseOrderController::class, 'updateStatus']);
+
         });
 
         // ── Recipes (Admin+) ──────────────────────────────────────────────────
